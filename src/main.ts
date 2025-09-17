@@ -1,13 +1,14 @@
 import { Component } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { EditorComponent } from './app/components/editor.component';
-import { DocumentationComponent } from './app/components/documentation.component';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { MonacoEditorModule, NgxMonacoEditorConfig } from 'ngx-monaco-editor-v2';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, EditorComponent, DocumentationComponent],
+  imports: [CommonModule, FormsModule, MonacoEditorModule, EditorComponent],
   template: `
     <div class="app-container">
       <header class="app-header">
@@ -18,13 +19,7 @@ import { CommonModule } from '@angular/common';
       </header>
       
       <main class="app-main">
-        <div class="editor-panel">
-          <app-editor (contentChange)="onContentChange($event)"></app-editor>
-        </div>
-        
-        <div class="documentation-panel">
-          <app-documentation [currentContent]="currentContent"></app-documentation>
-        </div>
+        <app-editor (contentChange)="onContentChange($event)"></app-editor>
       </main>
     </div>
   `,
@@ -72,28 +67,43 @@ import { CommonModule } from '@angular/common';
     .app-main {
       flex: 1;
       display: grid;
-      grid-template-columns: 1fr 400px;
+      grid-template-columns: 1fr 400px 400px;
       gap: 20px;
       padding: 20px;
-      max-width: 1200px;
+      max-width: 1600px;
       margin: 0 auto;
       width: 100%;
       box-sizing: border-box;
     }
 
     .editor-panel,
-    .documentation-panel {
+    .documentation-panel,
+    .evaluator-panel {
       height: 100%;
       min-height: 600px;
+    }
+
+    @media (max-width: 1400px) {
+      .app-main {
+        grid-template-columns: 1fr 400px;
+        grid-template-rows: 1fr auto;
+      }
+      
+      .evaluator-panel {
+        grid-column: 1 / -1;
+        max-height: 400px;
+        min-height: 300px;
+      }
     }
 
     @media (max-width: 1024px) {
       .app-main {
         grid-template-columns: 1fr;
-        grid-template-rows: 1fr auto;
+        grid-template-rows: 1fr auto auto;
       }
       
-      .documentation-panel {
+      .documentation-panel,
+      .evaluator-panel {
         max-height: 400px;
         min-height: 300px;
       }
@@ -127,4 +137,23 @@ export class App {
   }
 }
 
-bootstrapApplication(App);
+// Configure Monaco Editor
+const monacoConfig: NgxMonacoEditorConfig = {
+  baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs',
+  defaultOptions: { 
+    scrollBeyondLastLine: false,
+    readOnly: false,
+    automaticLayout: true
+  },
+  onMonacoLoad: () => {
+    console.log('Monaco Editor loaded');
+    console.log('Monaco object:', (window as any).monaco);
+    // Monaco will be available as (window as any).monaco
+  }
+};
+
+bootstrapApplication(App, {
+  providers: [
+    MonacoEditorModule.forRoot(monacoConfig).providers || []
+  ]
+});

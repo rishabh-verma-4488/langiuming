@@ -1,12 +1,13 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Output, EventEmitter } from '@angular/core';
-import * as monaco from 'monaco-editor';
+import { Component, OnInit, OnDestroy, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HelloWorldValidator } from '../language/hello-world-validator';
+import { FormsModule } from '@angular/forms';
+import { MonacoEditorModule, NgxMonacoEditorConfig, NgxEditorModel } from 'ngx-monaco-editor-v2';
+import { MonacoLSPClient } from '../language/monaco-lsp-client';
 
 @Component({
   selector: 'app-editor',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, MonacoEditorModule],
   template: `
     <div class="editor-container">
       <div class="editor-header">
@@ -16,7 +17,14 @@ import { HelloWorldValidator } from '../language/hello-world-validator';
           <button class="btn btn-secondary" (click)="clearEditor()">Clear</button>
         </div>
       </div>
-      <div #editorContainer class="editor-content"></div>
+      <div class="editor-content">
+        <ngx-monaco-editor 
+          [options]="editorOptions" 
+          [model]="editorModel"
+          (onInit)="onEditorInit($event)"
+          class="monaco-editor">
+        </ngx-monaco-editor>
+      </div>
       <div class="editor-footer">
         <div class="status-bar">
           <span class="status-item">Line {{ currentLine }}, Column {{ currentColumn }}</span>
@@ -109,50 +117,152 @@ import { HelloWorldValidator } from '../language/hello-world-validator';
       color: #dc2626;
       font-weight: 500;
     }
+
+    .monaco-editor {
+      height: 100%;
+      min-height: 400px;
+    }
   `]
 })
-export class EditorComponent implements OnInit, OnDestroy {
-  @ViewChild('editorContainer', { static: true }) editorContainer!: ElementRef;
+export class EditorComponent implements OnInit, OnDestroy, OnChanges {
   @Output() contentChange = new EventEmitter<string>();
 
-  private editor: monaco.editor.IStandaloneCodeEditor | null = null;
-  private validator = new HelloWorldValidator();
+  private editor: any = null;
+  private lspClient = new MonacoLSPClient();
+  private updateTimeout: any = null;
   currentLine = 1;
   currentColumn = 1;
   errorCount = 0;
   warningCount = 0;
 
-  ngOnInit() {
-    this.initializeEditor();
-  }
-
-  ngOnDestroy() {
-    if (this.editor) {
-      this.editor.dispose();
+  // Monaco editor options
+  editorOptions = {
+    theme: 'vs-light',
+    language: 'specter',
+    fontSize: 14,
+    lineNumbers: 'on' as const,
+    roundedSelection: false,
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+    minimap: { enabled: false },
+    readOnly: false,
+    selectOnLineNumbers: true,
+    glyphMargin: true,
+    folding: true,
+    lineDecorationsWidth: 10,
+    lineNumbersMinChars: 0,
+    renderLineHighlight: 'line',
+    scrollbar: {
+      vertical: 'auto',
+      horizontal: 'auto'
     }
+  };
+
+  // Editor content
+  private _code = `// Specter Language Example - Expression-Only Grammar
+// Valid expressions (no errors):
+GreaterThan(100, 50) AND LessThan(200, 300)
+Equals(Not(Empty("test")), true) OR Contains([1, 2, 3], 2)
+Currency(50000, "USD")
+Duration(6, MONTHS)
+add(10, 20)
+
+// Invalid examples to see validation errors:
+hello world
+var name = value
+name = value
+(unmatched parentheses
+{unmatched braces`;
+
+  get code(): string {
+    return this._code;
   }
 
-  private async initializeEditor() {
-    // Configure Monaco Editor environment
+  set code(value: string) {
+    this._code = value;
+    this.updateEditorModel();
+    this.contentChange.emit(value);
+    // LSP will handle validation automatically
+  }
+
+  // Editor model for Monaco
+  editorModel: NgxEditorModel = {
+    value: this._code,
+    language: 'specter'
+  };
+
+  private updateEditorModel() {
+    this.editorModel = {
+      value: this._code,
+      language: 'specter'
+    };
+  }
+
+  async ngOnInit() {
+    // Configure Monaco Editor environment before editor initialization
     (window as any).MonacoEnvironment = {
       getWorkerUrl: function (moduleId: string, label: string) {
         if (label === 'json') {
-          return './vs/language/json/json.worker.js';
+          return 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/language/json/json.worker.js';
         }
         if (label === 'css' || label === 'scss' || label === 'less') {
-          return './vs/language/css/css.worker.js';
+          return 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/language/css/css.worker.js';
         }
         if (label === 'html' || label === 'handlebars' || label === 'razor') {
-          return './vs/language/html/html.worker.js';
+          return 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/language/html/html.worker.js';
         }
         if (label === 'typescript' || label === 'javascript') {
-          return './vs/language/typescript/ts.worker.js';
+          return 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/language/typescript/ts.worker.js';
         }
-        return './vs/editor/editor.worker.js';
+        return 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/editor/editor.worker.js';
       }
     };
 
+    // Initialize LSP client
+    try {
+      await this.lspClient.initialize();
+      console.log('LSP client initialized successfully');
+      
+      // Open the initial document
+      await this.lspClient.openDocument('file:///specter-document', this._code);
+    } catch (error) {
+      console.error('Failed to initialize LSP client:', error);
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    // Handle any changes if needed
+  }
+
+  async ngOnDestroy() {
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+    }
+    if (this.editor) {
+      this.editor.dispose();
+    }
+    await this.lspClient.dispose();
+  }
+
+  onEditorInit(editor: any) {
+    console.log('Editor initialized:', editor);
+    this.editor = editor;
+    
     // Register the Specter language
+    const monaco = (window as any).monaco;
+    if (!monaco) {
+      console.error('Monaco not available on window object');
+      return;
+    }
+
+    // Set Monaco editor instance in LSP client
+    this.lspClient.setMonacoEditor(monaco, editor);
+    
+    // Check if editor is editable
+    console.log('Editor readOnly:', editor.getOption(monaco.editor.EditorOption.readOnly));
+    console.log('Editor is editable:', !editor.getOption(monaco.editor.EditorOption.readOnly));
+    
+    console.log('Monaco available:', monaco);
     monaco.languages.register({ id: 'specter' });
 
     // Set language configuration
@@ -215,318 +325,38 @@ export class EditorComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Create the editor
-    this.editor = monaco.editor.create(this.editorContainer.nativeElement, {
-      value: `// Specter Language Example - Expression-Only Grammar
-// Valid expressions (no errors):
-GreaterThan(100, 50) AND LessThan(200, 300)
-Equals(Not(Empty("test")), true) OR Contains([1, 2, 3], 2)
-Currency(50000, "USD")
-Duration(6, MONTHS)
-
-// Try these invalid examples to see validation errors:
-// hello world
-// random text
-// 123abc
-// var name = value
-// name = value
-// function without parentheses
-// (unmatched parentheses
-// {unmatched braces`,
-      language: 'specter',
-      theme: 'vs-light',
-      fontSize: 14,
-      lineNumbers: 'on',
-      roundedSelection: false,
-      scrollBeyondLastLine: false,
-      automaticLayout: true,
-      minimap: { enabled: false }
-    });
-
     // Listen for content changes
     this.editor.onDidChangeModelContent(() => {
-      const content = this.editor?.getValue() || '';
+      const content = this.editor.getValue();
+      console.log('Code changed:', content);
+      this._code = content;
       this.contentChange.emit(content);
-      this.validateContent(content);
+      
+      // Debounce LSP updates to avoid too many requests while typing
+      if (this.updateTimeout) {
+        clearTimeout(this.updateTimeout);
+      }
+      
+      this.updateTimeout = setTimeout(() => {
+        // Notify LSP client of document changes
+        if (this.lspClient.isInitialized()) {
+          console.log('Content changed, updating LSP document...');
+          this.lspClient.updateDocument('file:///specter-document', content, Date.now());
+        } else {
+          console.log('LSP client not initialized, skipping document update');
+        }
+      }, 500); // Wait 500ms after user stops typing
     });
 
     // Listen for cursor position changes
-    this.editor.onDidChangeCursorPosition((e: monaco.editor.ICursorPositionChangedEvent) => {
+    this.editor.onDidChangeCursorPosition((e: any) => {
       this.currentLine = e.position.lineNumber;
       this.currentColumn = e.position.column;
     });
-
-    // Initial validation
-    this.validateContent(this.editor.getValue());
   }
 
-  private validateContent(content: string) {
-    const lines = content.split('\n');
-    const markers: monaco.editor.IMarkerData[] = [];
-    let errorCount = 0;
-    let warningCount = 0;
 
-    lines.forEach((line, index) => {
-      const trimmedLine = line.trim();
-      
-      // Skip empty lines and comments
-      if (!trimmedLine || trimmedLine.startsWith('//') || trimmedLine.startsWith('/*')) {
-        return;
-      }
-
-      // Validate that the line matches Specter grammar
-      const validation = this.validateSpecterLine(trimmedLine);
-      
-      if (!validation.isValid) {
-        markers.push({
-          severity: monaco.MarkerSeverity.Error,
-          message: validation.message,
-          startLineNumber: index + 1,
-          startColumn: 1,
-          endLineNumber: index + 1,
-          endColumn: line.length + 1
-        });
-        errorCount++;
-      }
-
-      // Add any additional warnings
-      if (validation.warnings.length > 0) {
-        validation.warnings.forEach(warning => {
-          markers.push({
-            severity: monaco.MarkerSeverity.Warning,
-            message: warning,
-            startLineNumber: index + 1,
-            startColumn: 1,
-            endLineNumber: index + 1,
-            endColumn: line.length + 1
-          });
-          warningCount++;
-        });
-      }
-    });
-
-    if (this.editor) {
-      monaco.editor.setModelMarkers(this.editor.getModel()!, 'specter', markers);
-    }
-
-    this.errorCount = errorCount;
-    this.warningCount = warningCount;
-  }
-
-  private validateSpecterLine(line: string): { isValid: boolean; message: string; warnings: string[] } {
-    const warnings: string[] = [];
-    
-    // Check for unmatched parentheses
-    const openParens = (line.match(/\(/g) || []).length;
-    const closeParens = (line.match(/\)/g) || []).length;
-    if (openParens !== closeParens) {
-      return {
-        isValid: false,
-        message: 'Unmatched parentheses',
-        warnings: []
-      };
-    }
-
-    // Check for unmatched braces
-    const openBraces = (line.match(/\{/g) || []).length;
-    const closeBraces = (line.match(/\}/g) || []).length;
-    if (openBraces !== closeBraces) {
-      return {
-        isValid: false,
-        message: 'Unmatched braces',
-        warnings: []
-      };
-    }
-
-    // Validate against Specter grammar patterns
-    const patterns = [
-      // Function calls: FunctionName(arg1, arg2)
-      /^[a-zA-Z_$][a-zA-Z0-9_$]*\s*\([^)]*\)$/,
-      
-      // Type rules: rule name(params): type { body }
-      /^rule\s+[a-zA-Z_$][a-zA-Z0-9_$]*\s*\([^)]*\)\s*:\s*(number|string|boolean|currency|duration|array|object)\s*\{[^}]*\}$/,
-      
-      // Logical expressions with AND/OR
-      /^.+(\s+(AND|OR)\s+.+)+$/,
-      
-      // Parenthesized expressions
-      /^\(.+\)$/,
-      
-      // Simple values: numbers, strings, booleans, identifiers
-      /^(\d+(\.\d+)?|"[^"]*"|true|false|[a-zA-Z_$][a-zA-Z0-9_$]*(\\.[a-zA-Z_$][a-zA-Z0-9_$]*)*)$/,
-      
-      // Duration units
-      /^(DAYS|WEEKS|MONTHS|YEARS)$/,
-      
-      // Type annotations
-      /^(number|string|boolean|currency|duration|array|object)$/
-    ];
-
-    // Check if line matches any valid pattern
-    const matchesPattern = patterns.some(pattern => pattern.test(line));
-    
-    if (!matchesPattern) {
-      // Provide specific error messages based on what the line looks like
-      if (line.startsWith('var')) {
-        return {
-          isValid: false,
-          message: 'Variable declarations are not supported in Specter language',
-          warnings: []
-        };
-      }
-      
-      if (line.includes('=') && !line.includes('(')) {
-        return {
-          isValid: false,
-          message: 'Assignment operations are not supported. Use function calls instead',
-          warnings: []
-        };
-      }
-      
-      if (line.includes('(') && !line.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(/)) {
-        return {
-          isValid: false,
-          message: 'Function call must start with valid identifier',
-          warnings: []
-        };
-      }
-      
-      if (line.includes('{') && !line.startsWith('rule')) {
-        return {
-          isValid: false,
-          message: 'Block must be part of rule definition',
-          warnings: []
-        };
-      }
-      
-      if (line.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*$/) && !line.match(/^(DAYS|WEEKS|MONTHS|YEARS|number|string|boolean|currency|duration|array|object)$/)) {
-        return {
-          isValid: false,
-          message: 'Identifier must be part of valid expression or function call',
-          warnings: []
-        };
-      }
-      
-      return {
-        isValid: false,
-        message: 'Invalid Specter syntax. Must be a function call, variable declaration, rule definition, or valid expression',
-        warnings: []
-      };
-    }
-
-    // Additional validation for function calls
-    if (line.includes('(') && line.includes(')')) {
-      const functionValidation = this.validateFunctionCallInLine(line);
-      if (!functionValidation.isValid) {
-        return functionValidation;
-      }
-      warnings.push(...functionValidation.warnings);
-    }
-
-    return {
-      isValid: true,
-      message: '',
-      warnings
-    };
-  }
-
-  private validateFunctionCallInLine(line: string): { isValid: boolean; message: string; warnings: string[] } {
-    const warnings: string[] = [];
-    
-    // Find all function calls in the line
-    const functionCallRegex = /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\([^)]*\)/g;
-    let match: RegExpExecArray | null;
-    
-    while ((match = functionCallRegex.exec(line)) !== null) {
-      const functionCall = match[0];
-      const functionName = match[1];
-      
-      // Parse the function call
-      const parsed = this.validator['functionValidator'].parseFunctionCall(functionCall);
-      if (parsed) {
-        // Convert string arguments to their actual types for validation
-        const typedArguments = parsed.args.map((arg: string) => this.parseArgumentValue(arg.trim()));
-        
-        // Validate the function call
-        const validation = this.validator['functionValidator'].validateFunctionCall(parsed.name, typedArguments);
-        
-        if (!validation.isValid) {
-          return {
-            isValid: false,
-            message: validation.errors[0] || 'Invalid function call',
-            warnings: []
-          };
-        }
-        
-        warnings.push(...validation.warnings);
-      }
-    }
-    
-    return {
-      isValid: true,
-      message: '',
-      warnings
-    };
-  }
-
-  private parseArgumentValue(arg: string): any {
-    // Remove quotes from strings
-    if (arg.startsWith('"') && arg.endsWith('"')) {
-      return arg.slice(1, -1);
-    }
-    
-    // Parse numbers
-    if (!isNaN(Number(arg))) {
-      return Number(arg);
-    }
-    
-    // Parse booleans
-    if (arg === 'true') return true;
-    if (arg === 'false') return false;
-    
-    // Parse arrays (simple case)
-    if (arg.startsWith('[') && arg.endsWith(']')) {
-      const content = arg.slice(1, -1).trim();
-      if (content === '') return [];
-      return content.split(',').map(item => this.parseArgumentValue(item.trim()));
-    }
-    
-    // Return as string for identifiers and other cases
-    return arg;
-  }
-
-  private validateFunctionCalls(line: string, lineNumber: number, markers: monaco.editor.IMarkerData[], errorCount: number, warningCount: number) {
-    // Use HelloWorldValidator to validate function calls
-    const validationResults: { message: string; severity: 'error' | 'warning' }[] = [];
-    
-    // Create a mock ValidationAcceptor to collect validation results
-    const mockAcceptor = (severity: any, message: string, info: any) => {
-      if (severity === 'error' || severity === 'warning') {
-        validationResults.push({ message, severity });
-      }
-    };
-    
-    // Validate the line using HelloWorldValidator
-    this.validator.validateFunctionCalls(line, mockAcceptor);
-    
-    // Convert validation results to Monaco markers
-    validationResults.forEach(result => {
-      markers.push({
-        severity: result.severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
-        message: result.message,
-        startLineNumber: lineNumber,
-        startColumn: 1,
-        endLineNumber: lineNumber,
-        endColumn: line.length + 1
-      });
-      
-      if (result.severity === 'error') {
-        errorCount++;
-      } else {
-        warningCount++;
-      }
-    });
-  }
+  // LSP handles validation automatically - no manual validation needed
 
 
 
@@ -537,8 +367,7 @@ Duration(6, MONTHS)
   }
 
   clearEditor() {
-    if (this.editor) {
-      this.editor.setValue('');
-    }
+    this.code = '';
+    this.updateEditorModel();
   }
 }

@@ -34,12 +34,17 @@
               {
                 "glob": "**/*",
                 "input": "node_modules/monaco-editor/min/vs",
-                "output": "vs"
+                "output": "assets/monaco"
               },
               {
                 "glob": "**/*",
                 "input": "node_modules/monaco-editor/esm/vs/base/browser/ui/codicons/codicon",
-                "output": "vs/base/browser/ui/codicons/codicon"
+                "output": "assets/monaco/base/browser/ui/codicons/codicon"
+              },
+              {
+                "glob": "specter-*.js",
+                "input": "src/app/language",
+                "output": "assets"
               }
             ],
             "index": "src/index.html",
@@ -47,6 +52,14 @@
             "outputPath": "dist/demo",
             "polyfills": ["zone.js"],
             "scripts": [],
+            "webWorkerTsConfig": "tsconfig.worker.json",
+            "allowedCommonJsDependencies": [
+                "vscode-languageserver",
+                "vscode-languageserver/browser",
+                "vscode-languageserver-protocol",
+                "vscode-jsonrpc",
+                "langium"
+            ],
             "styles": ["src/global_styles.css"],
             "tsConfig": "tsconfig.app.json"
           }

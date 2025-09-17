@@ -113,6 +113,16 @@ export class FunctionValidator {
       description: 'Creates a duration value with amount and unit',
       category: 'factory'
     });
+
+    // Arithmetic functions
+    this.registerFunction({
+      name: 'add',
+      minArgs: 2,
+      maxArgs: 2,
+      argTypes: ['number', 'number'],
+      description: 'Returns the sum of two numbers',
+      category: 'utility'
+    });
   }
 
   registerFunction(definition: FunctionDefinition) {
@@ -150,6 +160,9 @@ export class FunctionValidator {
         }
       }
     }
+
+    // Validate nested function calls
+    this.validateNestedFunctionCalls(args, errors, warnings);
 
     // Special validation for specific functions
     this.validateSpecialCases(functionName, args, errors, warnings);
@@ -201,14 +214,66 @@ export class FunctionValidator {
     }
   }
 
+  private validateNestedFunctionCalls(args: any[], errors: string[], warnings: string[]): void {
+    args.forEach((arg, index) => {
+      if (typeof arg === 'string' && this.isFunctionCall(arg)) {
+        const parsed = this.parseFunctionCall(arg);
+        if (parsed) {
+          // Recursively validate the nested function call
+          const nestedValidation = this.validateFunctionCall(parsed.name, parsed.args.map((a: string) => this.parseArgumentValue(a.trim())));
+          
+          if (!nestedValidation.isValid) {
+            errors.push(`Nested function call in argument ${index + 1}: ${nestedValidation.errors[0]}`);
+          }
+          
+          warnings.push(...nestedValidation.warnings.map(w => `Nested function call in argument ${index + 1}: ${w}`));
+        }
+      }
+    });
+  }
+
+  private isFunctionCall(value: string): boolean {
+    return /^[a-zA-Z_$][a-zA-Z0-9_$]*\s*\([^)]*\)$/.test(value);
+  }
+
   private getTypeOfValue(value: any): string {
     if (value === null || value === undefined) return 'null';
     if (typeof value === 'boolean') return 'boolean';
     if (typeof value === 'number') return 'number';
-    if (typeof value === 'string') return 'string';
+    if (typeof value === 'string') {
+      // Check if it's a function call
+      if (this.isFunctionCall(value)) {
+        const parsed = this.parseFunctionCall(value);
+        if (parsed) {
+          return this.getFunctionReturnType(parsed.name);
+        }
+      }
+      return 'string';
+    }
     if (Array.isArray(value)) return 'array';
     if (typeof value === 'object') return 'object';
     return 'unknown';
+  }
+
+  private getFunctionReturnType(functionName: string): string {
+    const functionDef = this.functionRegistry.get(functionName);
+    if (!functionDef) return 'unknown';
+    
+    // Define return types for different function categories
+    switch (functionDef.category) {
+      case 'comparison':
+      case 'logical':
+        return 'boolean';
+      case 'factory':
+        if (functionName === 'Currency') return 'currency';
+        if (functionName === 'Duration') return 'duration';
+        return 'object';
+      case 'utility':
+        if (functionName === 'add') return 'number';
+        return 'unknown';
+      default:
+        return 'unknown';
+    }
   }
 
   private isTypeCompatible(actualType: string, expectedType: string): boolean {
@@ -288,6 +353,32 @@ export class FunctionValidator {
     }
 
     return args;
+  }
+
+  private parseArgumentValue(arg: string): any {
+    // Remove quotes from strings
+    if (arg.startsWith('"') && arg.endsWith('"')) {
+      return arg.slice(1, -1);
+    }
+    
+    // Parse numbers
+    if (!isNaN(Number(arg))) {
+      return Number(arg);
+    }
+    
+    // Parse booleans
+    if (arg === 'true') return true;
+    if (arg === 'false') return false;
+    
+    // Parse arrays (simple case)
+    if (arg.startsWith('[') && arg.endsWith(']')) {
+      const content = arg.slice(1, -1).trim();
+      if (content === '') return [];
+      return content.split(',').map(item => this.parseArgumentValue(item.trim()));
+    }
+    
+    // Return as string for identifiers and other cases
+    return arg;
   }
 }
  
