@@ -1,34 +1,35 @@
-import { createDefaultSharedCoreModule, createDefaultCoreModule, DefaultSharedCoreModuleContext, inject, LangiumCoreServices, LangiumSharedCoreServices, Module, PartialLangiumCoreServices } from 'langium';
-import { SpecterGeneratedModule, SpecterGeneratedSharedModule } from './generated/module';
+import { LangiumServices, PartialLangiumServices } from 'langium/lsp';
+import { Module } from 'langium';
+import { ValidationRegistry } from 'langium';
 import { SpecterValidationRegistry } from './specter-validation';
 
 export type SpecterAddedServices = {
     // Add any custom services here if needed
 }
 
-export type SpecterServices = LangiumCoreServices & SpecterAddedServices;
+export type SpecterServices = LangiumServices & SpecterAddedServices;
 
-export const SpecterCustomModule: Module<SpecterServices, PartialLangiumCoreServices & SpecterAddedServices> = {
+console.log('[SPECTER-DEBUG] SpecterCustomModule: Initializing module');
+console.log('[SPECTER-DEBUG] SpecterCustomModule: SpecterValidationRegistry type:', typeof SpecterValidationRegistry);
+console.log('[SPECTER-DEBUG] SpecterCustomModule: SpecterValidationRegistry keys:', Object.keys(SpecterValidationRegistry));
+
+export const SpecterCustomModule: Module<SpecterServices, PartialLangiumServices & SpecterAddedServices> = {
     validation: {
-        ValidationRegistry: () => SpecterValidationRegistry
+        ValidationRegistry: (services) => {
+            console.log('[SPECTER-DEBUG] SpecterCustomModule: Creating ValidationRegistry with services');
+            try {
+                const registry = new ValidationRegistry(services);
+                console.log('[SPECTER-DEBUG] SpecterCustomModule: ValidationRegistry created successfully');
+                console.log('[SPECTER-DEBUG] SpecterCustomModule: Registering validation checks');
+                registry.register(SpecterValidationRegistry);
+                console.log('[SPECTER-DEBUG] SpecterCustomModule: Validation checks registered successfully');
+                console.log('[SPECTER-DEBUG] SpecterCustomModule: Registry checksBefore:', registry.checksBefore);
+                console.log('[SPECTER-DEBUG] SpecterCustomModule: Registry checksAfter:', registry.checksAfter);
+                return registry;
+            } catch (error) {
+                console.error('[SPECTER-DEBUG] SpecterCustomModule: Error creating ValidationRegistry:', error);
+                throw error;
+            }
+        }
     }
 };
-
-export function createSpecterServices(context: DefaultSharedCoreModuleContext): {
-    shared: LangiumSharedCoreServices,
-    Specter: SpecterServices
-} {
-    const shared = inject(
-        createDefaultSharedCoreModule(context),
-        SpecterGeneratedSharedModule
-    );
-
-    const Specter = inject(
-        createDefaultCoreModule({ shared }),
-        SpecterGeneratedModule,
-        SpecterCustomModule
-    );
-
-    shared.ServiceRegistry.register(Specter);
-    return { shared, Specter };
-}
