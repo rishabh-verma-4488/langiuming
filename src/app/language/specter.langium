@@ -1,4 +1,3 @@
-export const SpecterGrammar = `
 grammar Specter
 
 entry Model:
@@ -8,7 +7,7 @@ Expression:
     LogicalExpression;
 
 LogicalExpression:
-    PrimaryExpression ({LogicalExpression.left=current} operator=('AND' | 'OR') right=PrimaryExpression)*;
+    PrimaryExpression ({infer LogicalExpression.left=current} operator=('AND' | 'OR') right=PrimaryExpression)*;
 
 PrimaryExpression:
     FunctionCall | Literal | ParenthesizedExpression;
@@ -38,7 +37,7 @@ ArrayLiteral:
     '[' values+=Expression (',' values+=Expression)* ']';
 
 terminal NUMBER returns number:
-    /-?\\d+(\\.\\d+)?/;
+    /-?\d+(\.\d+)?/;
 
 terminal STRING:
     /"[^"]*"/;
@@ -47,15 +46,10 @@ terminal ID:
     /[a-zA-Z_$][a-zA-Z0-9_$]*/;
 
 hidden terminal WS:
-    /[\\s\\n\\r]+/;
+    /[\s\n\r]+/;
 
 hidden terminal ML_COMMENT:
-    /\\/\\*[\\s\\S]*?\\*\\//;
+    /\/\*[\s\S]*?\*\//;
 
 hidden terminal SL_COMMENT:
-    /\\/\\/[^\\n\\r]*/;
-`;
-
-export function createSpecterGrammar(): string {
-    return SpecterGrammar;
-}
+    /\/\/[^\n\r]*/;

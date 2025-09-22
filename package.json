@@ -35,5 +35,14 @@
     "@types/vscode": "^1.81.0",
     "langium-cli": "^3.0.0",
     "typescript": "^5.8.2"
+  },
+  "langium": {
+    "projectName": "Specter",
+    "languages": [{
+      "id": "specter",
+      "grammar": "src/app/language/specter.langium",
+      "fileExtensions": [".specter"]
+    }],
+    "out": "src/app/language/generated"
   }
 }

@@ -1,50 +1,30 @@
-import { startLanguageServer } from 'langium/lsp';
+import { createDefaultModule, createDefaultSharedModule, DefaultSharedModuleContext, startLanguageServer } from 'langium/lsp';
+import { inject } from 'langium';
 import { BrowserMessageReader, BrowserMessageWriter, createConnection } from 'vscode-languageserver/browser';
-import { createDefaultModule, createDefaultSharedModule, DefaultSharedModuleContext, LangiumServices, LangiumSharedServices, PartialLangiumServices } from 'langium/lsp';
-import { inject, Module } from 'langium';
 import { EmptyFileSystem } from 'langium';
-import { SpecterValidator } from './specter-validator';
-import { SpecterEvaluator } from './specter-evaluator';
+import { SpecterGeneratedModule, SpecterGeneratedSharedModule } from './generated/module';
+import { SpecterCustomModule } from './specter-custom-module';
 
 // Create message reader and writer for web worker communication
 const messageReader = new BrowserMessageReader(self as any);
 const messageWriter = new BrowserMessageWriter(self as any);
 const connection = createConnection(messageReader, messageWriter);
 
-// Define Specter services
-export type SpecterAddedServices = {
-    validation: {
-        SpecterValidator: SpecterValidator
-    },
-    evaluation: {
-        SpecterEvaluator: SpecterEvaluator
-    }
-}
-
-export type SpecterServices = LangiumServices & SpecterAddedServices;
-
-export const SpecterModule: Module<SpecterServices, PartialLangiumServices & SpecterAddedServices> = {
-    validation: {
-        SpecterValidator: () => new SpecterValidator()
-    },
-    evaluation: {
-        SpecterEvaluator: () => new SpecterEvaluator()
-    }
-};
-
-// Create Langium services
+// Create Langium services with Specter grammar and validation
 const context: DefaultSharedModuleContext = {
     connection: connection as any,
-    fileSystemProvider: (services) => EmptyFileSystem.fileSystemProvider()
+    fileSystemProvider: () => EmptyFileSystem.fileSystemProvider()
 };
 
 const shared = inject(
-    createDefaultSharedModule(context)
+    createDefaultSharedModule(context),
+    SpecterGeneratedSharedModule
 );
 
 const Specter = inject(
     createDefaultModule({ shared }),
-    SpecterModule
+    SpecterGeneratedModule,
+    SpecterCustomModule
 );
 
 shared.ServiceRegistry.register(Specter);
