@@ -9,13 +9,32 @@ interface FunctionSignature {
     description?: string;
 }
 
+/** Type inference result for expressions */
+interface TypeInferenceResult {
+    type: string;
+    isError: boolean;
+    errorMessage?: string;
+    node?: any;
+}
+
+/** Enhanced function signature with type combinations */
+interface EnhancedFunctionSignature extends FunctionSignature {
+    typeCombinations: Array<{
+        parameterTypes: string[];
+        returnType: string;
+        description?: string;
+    }>;
+}
+
 /** Validates Specter language expressions and function calls */
 export class SpecterValidator {
     private functionRegistry = new Map<string, FunctionSignature>();
+    private enhancedFunctionRegistry = new Map<string, EnhancedFunctionSignature>();
 
     constructor() {
         console.log('[SPECTER-DEBUG] SpecterValidator constructor: Starting');
         this.registerBuiltinFunctions();
+        this.registerEnhancedFunctions();
         console.log('[SPECTER-DEBUG] SpecterValidator constructor: Completed, registered', this.functionRegistry.size, 'functions');
     }
 
@@ -143,6 +162,134 @@ export class SpecterValidator {
         });
     }
 
+    /** Registers enhanced functions with type combinations for nested validation */
+    private registerEnhancedFunctions(): void {
+        console.log('[SPECTER-DEBUG] SpecterValidator: Registering enhanced functions with type combinations');
+
+        // Arithmetic functions with type combinations
+        this.enhancedFunctionRegistry.set('add', {
+            name: 'add',
+            parameters: [
+                { name: 'left', type: 'number' },
+                { name: 'right', type: 'number' }
+            ],
+            returnType: 'number',
+            description: 'Adds two numbers',
+            typeCombinations: [
+                { parameterTypes: ['number', 'number'], returnType: 'number', description: 'Add two numbers' },
+                { parameterTypes: ['currency', 'currency'], returnType: 'currency', description: 'Add two currencies' },
+                { parameterTypes: ['duration', 'duration'], returnType: 'duration', description: 'Add two durations' }
+            ]
+        });
+
+        this.enhancedFunctionRegistry.set('subtract', {
+            name: 'subtract',
+            parameters: [
+                { name: 'left', type: 'number' },
+                { name: 'right', type: 'number' }
+            ],
+            returnType: 'number',
+            description: 'Subtracts right from left',
+            typeCombinations: [
+                { parameterTypes: ['number', 'number'], returnType: 'number', description: 'Subtract two numbers' },
+                { parameterTypes: ['currency', 'currency'], returnType: 'currency', description: 'Subtract two currencies' },
+                { parameterTypes: ['duration', 'duration'], returnType: 'duration', description: 'Subtract two durations' }
+            ]
+        });
+
+        this.enhancedFunctionRegistry.set('multiply', {
+            name: 'multiply',
+            parameters: [
+                { name: 'left', type: 'number' },
+                { name: 'right', type: 'number' }
+            ],
+            returnType: 'number',
+            description: 'Multiplies two numbers',
+            typeCombinations: [
+                { parameterTypes: ['number', 'number'], returnType: 'number', description: 'Multiply two numbers' },
+                { parameterTypes: ['currency', 'number'], returnType: 'currency', description: 'Multiply currency by number' },
+                { parameterTypes: ['number', 'currency'], returnType: 'currency', description: 'Multiply number by currency' },
+                { parameterTypes: ['duration', 'number'], returnType: 'duration', description: 'Multiply duration by number' },
+                { parameterTypes: ['number', 'duration'], returnType: 'duration', description: 'Multiply number by duration' }
+            ]
+        });
+
+        this.enhancedFunctionRegistry.set('divide', {
+            name: 'divide',
+            parameters: [
+                { name: 'left', type: 'number' },
+                { name: 'right', type: 'number' }
+            ],
+            returnType: 'number',
+            description: 'Divides left by right',
+            typeCombinations: [
+                { parameterTypes: ['number', 'number'], returnType: 'number', description: 'Divide two numbers' },
+                { parameterTypes: ['currency', 'number'], returnType: 'currency', description: 'Divide currency by number' },
+                { parameterTypes: ['duration', 'number'], returnType: 'duration', description: 'Divide duration by number' }
+            ]
+        });
+
+        // Comparison functions with type combinations
+        this.enhancedFunctionRegistry.set('GreaterThan', {
+            name: 'GreaterThan',
+            parameters: [
+                { name: 'left', type: 'number' },
+                { name: 'right', type: 'number' }
+            ],
+            returnType: 'boolean',
+            description: 'Returns true if left is greater than right',
+            typeCombinations: [
+                { parameterTypes: ['number', 'number'], returnType: 'boolean', description: 'Compare two numbers' },
+                { parameterTypes: ['currency', 'currency'], returnType: 'boolean', description: 'Compare two currencies' },
+                { parameterTypes: ['duration', 'duration'], returnType: 'boolean', description: 'Compare two durations' }
+            ]
+        });
+
+        this.enhancedFunctionRegistry.set('LessThan', {
+            name: 'LessThan',
+            parameters: [
+                { name: 'left', type: 'number' },
+                { name: 'right', type: 'number' }
+            ],
+            returnType: 'boolean',
+            description: 'Returns true if left is less than right',
+            typeCombinations: [
+                { parameterTypes: ['number', 'number'], returnType: 'boolean', description: 'Compare two numbers' },
+                { parameterTypes: ['currency', 'currency'], returnType: 'boolean', description: 'Compare two currencies' },
+                { parameterTypes: ['duration', 'duration'], returnType: 'boolean', description: 'Compare two durations' }
+            ]
+        });
+
+        // Special type constructors
+        this.enhancedFunctionRegistry.set('Currency', {
+            name: 'Currency',
+            parameters: [
+                { name: 'amount', type: 'number' },
+                { name: 'currencyCode', type: 'string' }
+            ],
+            returnType: 'currency',
+            description: 'Creates a currency value with amount and currency code',
+            typeCombinations: [
+                { parameterTypes: ['number', 'string'], returnType: 'currency', description: 'Create currency from number and string' }
+            ]
+        });
+
+        this.enhancedFunctionRegistry.set('Duration', {
+            name: 'Duration',
+            parameters: [
+                { name: 'value', type: 'number' },
+                { name: 'unit', type: 'string' }
+            ],
+            returnType: 'duration',
+            description: 'Creates a duration value with amount and unit',
+            typeCombinations: [
+                { parameterTypes: ['number', 'string'], returnType: 'duration', description: 'Create duration from number and string' }
+            ]
+        });
+
+        console.log('[SPECTER-DEBUG] SpecterValidator: Enhanced functions registered:', this.enhancedFunctionRegistry.size);
+    }
+
     /** Validates all expressions in the model */
     checkModel(model: Model, accept: ValidationAcceptor): void {
         console.log('[SPECTER-DEBUG] SpecterValidator.checkModel: Starting validation');
@@ -223,9 +370,32 @@ export class SpecterValidator {
 
     /** Validates function calls (name, parameters, types) */
     checkFunctionCall(call: FunctionCall, accept: ValidationAcceptor): void {
-        const signature = this.functionRegistry.get(call.name);
+        console.log('[SPECTER-DEBUG] SpecterValidator.checkFunctionCall: Validating function call:', call.name);
 
-        // Check if function exists in registry
+        // Use recursive type inference for enhanced validation
+        const typeResult = this.inferFunctionCallType(call);
+
+        if (typeResult.isError) {
+            console.log('[SPECTER-DEBUG] SpecterValidator.checkFunctionCall: Type inference error:', typeResult.errorMessage);
+            accept('error', typeResult.errorMessage || 'Type inference error', {
+                node: call,
+                property: 'name'
+            });
+            return;
+        }
+
+        console.log('[SPECTER-DEBUG] SpecterValidator.checkFunctionCall: Inferred type:', typeResult.type);
+
+        // For enhanced functions, we've already done the validation in type inference
+        const enhancedSignature = this.enhancedFunctionRegistry.get(call.name);
+        if (enhancedSignature) {
+            // Enhanced validation is already done in type inference
+            console.log('[SPECTER-DEBUG] SpecterValidator.checkFunctionCall: Enhanced function validation completed');
+            return;
+        }
+
+        // Fall back to basic validation for non-enhanced functions
+        const signature = this.functionRegistry.get(call.name);
         if (!signature) {
             accept('error', `Unknown function '${call.name}'. Available functions: ${Array.from(this.functionRegistry.keys()).join(', ')}`, {
                 node: call,
@@ -253,19 +423,26 @@ export class SpecterValidator {
             });
         }
 
-        // Validate argument types
+        // Validate argument types using recursive inference
         if (call.arguments) {
             call.arguments.values.forEach((arg: Expression, index: number) => {
-                if (index < signature.parameters.length) {
-                    const expectedType = signature.parameters[index].type;
-                    const actualType = this.getExpressionType(arg);
+                const argTypeResult = this.inferExpressionType(arg);
 
-                    if (actualType && !this.isTypeCompatible(actualType, expectedType)) {
+                if (argTypeResult.isError) {
+                    accept('error', `Argument ${index + 1} of '${call.name}': ${argTypeResult.errorMessage}`, {
+                        node: arg
+                    });
+                } else if (index < signature.parameters.length) {
+                    const expectedType = signature.parameters[index].type;
+                    const actualType = argTypeResult.type;
+
+                    if (!this.isTypeCompatible(actualType, expectedType)) {
                         accept('error', `Argument ${index + 1} of '${call.name}' expects type '${expectedType}', got '${actualType}'.`, {
                             node: arg
                         });
                     }
                 }
+
                 // Recursively validate argument expressions
                 this.checkExpression(arg, accept);
             });
@@ -340,6 +517,175 @@ export class SpecterValidator {
         }
 
         return null;
+    }
+
+    /** Recursively infers the type of an expression with error handling */
+    private inferExpressionType(expression: Expression): TypeInferenceResult {
+        console.log('[SPECTER-DEBUG] SpecterValidator.inferExpressionType: Inferring type for:', expression?.$type);
+
+        try {
+            if (isNumberLiteral(expression)) {
+                return { type: 'number', isError: false };
+            } else if (isStringLiteral(expression)) {
+                return { type: 'string', isError: false };
+            } else if (isBooleanLiteral(expression)) {
+                return { type: 'boolean', isError: false };
+            } else if (isArrayLiteral(expression)) {
+                return { type: 'array', isError: false };
+            } else if (isFunctionCall(expression)) {
+                return this.inferFunctionCallType(expression);
+            } else if (isLogicalExpression(expression)) {
+                return this.inferLogicalExpressionType(expression);
+            } else if (isParenthesizedExpression(expression)) {
+                const nestedExpr = (expression as any).expression;
+                return nestedExpr ? this.inferExpressionType(nestedExpr) : { type: 'unknown', isError: true, errorMessage: 'Empty parenthesized expression' };
+            }
+
+            return { type: 'unknown', isError: true, errorMessage: 'Unknown expression type', node: expression };
+        } catch (error) {
+            console.error('[SPECTER-DEBUG] SpecterValidator.inferExpressionType: Error inferring type:', error);
+            return {
+                type: 'error',
+                isError: true,
+                errorMessage: error instanceof Error ? error.message : 'Unknown error during type inference',
+                node: expression
+            };
+        }
+    }
+
+    /** Infers the type of a function call with nested validation */
+    private inferFunctionCallType(call: FunctionCall): TypeInferenceResult {
+        console.log('[SPECTER-DEBUG] SpecterValidator.inferFunctionCallType: Inferring type for function:', call.name);
+
+        // First check if it's in the enhanced registry
+        const enhancedSignature = this.enhancedFunctionRegistry.get(call.name);
+        if (enhancedSignature) {
+            return this.inferEnhancedFunctionCallType(call, enhancedSignature);
+        }
+
+        // Fall back to basic registry
+        const signature = this.functionRegistry.get(call.name);
+        if (!signature) {
+            return {
+                type: 'error',
+                isError: true,
+                errorMessage: `Unknown function '${call.name}'`,
+                node: call
+            };
+        }
+
+        // For basic functions, infer argument types and validate
+        const argumentTypes: string[] = [];
+        const argumentErrors: string[] = [];
+
+        if (call.arguments) {
+            for (let i = 0; i < call.arguments.values.length; i++) {
+                const arg = call.arguments.values[i];
+                const argTypeResult = this.inferExpressionType(arg);
+
+                if (argTypeResult.isError) {
+                    argumentErrors.push(`Argument ${i + 1}: ${argTypeResult.errorMessage}`);
+                } else {
+                    argumentTypes.push(argTypeResult.type);
+                }
+            }
+        }
+
+        if (argumentErrors.length > 0) {
+            return {
+                type: 'error',
+                isError: true,
+                errorMessage: `Function '${call.name}' argument errors: ${argumentErrors.join(', ')}`,
+                node: call
+            };
+        }
+
+        return { type: signature.returnType, isError: false };
+    }
+
+    /** Infers the type of an enhanced function call with type combinations */
+    private inferEnhancedFunctionCallType(call: FunctionCall, signature: EnhancedFunctionSignature): TypeInferenceResult {
+        console.log('[SPECTER-DEBUG] SpecterValidator.inferEnhancedFunctionCallType: Inferring type for enhanced function:', call.name);
+
+        // Infer argument types recursively
+        const argumentTypes: string[] = [];
+        const argumentErrors: string[] = [];
+
+        if (call.arguments) {
+            for (let i = 0; i < call.arguments.values.length; i++) {
+                const arg = call.arguments.values[i];
+                const argTypeResult = this.inferExpressionType(arg);
+
+                if (argTypeResult.isError) {
+                    argumentErrors.push(`Argument ${i + 1}: ${argTypeResult.errorMessage}`);
+                } else {
+                    argumentTypes.push(argTypeResult.type);
+                }
+            }
+        }
+
+        if (argumentErrors.length > 0) {
+            return {
+                type: 'error',
+                isError: true,
+                errorMessage: `Function '${call.name}' argument errors: ${argumentErrors.join(', ')}`,
+                node: call
+            };
+        }
+
+        // Find matching type combination
+        const matchingCombination = signature.typeCombinations.find(combo =>
+            this.typesMatch(argumentTypes, combo.parameterTypes)
+        );
+
+        if (matchingCombination) {
+            console.log('[SPECTER-DEBUG] SpecterValidator.inferEnhancedFunctionCallType: Found matching combination:', matchingCombination);
+            return { type: matchingCombination.returnType, isError: false };
+        }
+
+        // Generate detailed error message for type mismatch
+        const expectedCombinations = signature.typeCombinations.map(combo =>
+            `(${combo.parameterTypes.join(', ')}) -> ${combo.returnType}`
+        ).join(', ');
+
+        return {
+            type: 'error',
+            isError: true,
+            errorMessage: `Function '${call.name}' type mismatch. Expected: ${expectedCombinations}, but got: (${argumentTypes.join(', ')})`,
+            node: call
+        };
+    }
+
+    /** Infers the type of a logical expression */
+    private inferLogicalExpressionType(logical: LogicalExpression): TypeInferenceResult {
+        const leftResult = this.inferExpressionType(logical.left as unknown as Expression);
+        if (leftResult.isError) {
+            return leftResult;
+        }
+
+        if (logical.right) {
+            const rightResult = this.inferExpressionType(logical.right as unknown as Expression);
+            if (rightResult.isError) {
+                return rightResult;
+            }
+        }
+
+        return { type: 'boolean', isError: false };
+    }
+
+    /** Checks if actual types match expected types with some flexibility */
+    private typesMatch(actualTypes: string[], expectedTypes: string[]): boolean {
+        if (actualTypes.length !== expectedTypes.length) {
+            return false;
+        }
+
+        for (let i = 0; i < actualTypes.length; i++) {
+            if (!this.isTypeCompatible(actualTypes[i], expectedTypes[i])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** Checks if two types are compatible */

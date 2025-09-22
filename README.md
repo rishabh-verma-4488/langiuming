@@ -88,7 +88,7 @@ Langium Worker (langium-worker.ts)
 Language Server Protocol
 ```
 
-### 2. Validation Flow
+### 2. Enhanced Validation Flow
 ```
 Document Change
         │
@@ -102,16 +102,42 @@ Langium Parser
 AST Generation
         │
         ▼
-Validation Registry (specter-validation.ts)
+Recursive Type Inference
         │
         ▼
-Custom Validation Rules
+Enhanced Function Registry
         │
         ▼
-Diagnostics Generation
+Type Combination Matching
+        │
+        ▼
+Nested Function Validation
+        │
+        ▼
+Error Message Generation
         │
         ▼
 Monaco Editor Markers
+```
+
+#### Type Inference Process
+```
+Function Call: add(Currency(100, "USD"), Currency(200, "USD"))
+        │
+        ▼
+Infer Argument Types:
+  - Currency(100, "USD") → currency
+  - Currency(200, "USD") → currency
+        │
+        ▼
+Find Matching Type Combination:
+  - (currency, currency) → currency
+        │
+        ▼
+Return Type: currency
+        │
+        ▼
+Validation: ✅ Valid
 ```
 
 ### 3. Evaluation Flow
@@ -186,17 +212,54 @@ ValidationRegistry: (services) => {
 }
 ```
 
+### Enhanced Function Registry
+The validation system now supports two types of function registries:
+
+#### Basic Function Registry
+- **Purpose**: Simple function signatures with basic type checking
+- **Features**: Parameter count validation, basic type compatibility
+- **Use Case**: Simple functions like `Equals`, `Not`, `Empty`
+
+#### Enhanced Function Registry
+- **Purpose**: Advanced type combinations and nested validation
+- **Features**: Multiple type combinations per function, recursive type inference
+- **Use Case**: Complex functions like `add`, `multiply`, `Currency`, `Duration`
+
+```typescript
+// Enhanced function signature example
+interface EnhancedFunctionSignature {
+    name: string;
+    parameters: Array<{ name: string; type: string; optional?: boolean }>;
+    returnType: string;
+    typeCombinations: Array<{
+        parameterTypes: string[];
+        returnType: string;
+        description?: string;
+    }>;
+}
+```
+
+### Recursive Type Inference
+The validation system now performs bottom-up type inference:
+
+1. **Literal Types**: Numbers, strings, booleans, arrays
+2. **Function Call Types**: Inferred from argument types and return types
+3. **Nested Validation**: Recursively validates nested function calls
+4. **Type Matching**: Finds matching type combinations for enhanced functions
+
 ### Validation Rules
 - **Model Validation**: Checks expression structure
 - **Function Call Validation**: Validates function names, parameters, and types
 - **Logical Expression Validation**: Ensures proper operator usage
-- **Type Checking**: Validates argument types against function signatures
+- **Nested Type Validation**: Recursively validates nested function calls
+- **Type Combination Matching**: Validates against allowed type combinations
 
 ### Error Handling
 - **Defensive Programming**: Null/undefined checks throughout
 - **Graceful Degradation**: Errors don't break the validation process
 - **Comprehensive Logging**: Detailed debug information
-- **User-Friendly Messages**: Clear error descriptions
+- **User-Friendly Messages**: Clear error descriptions with expected vs actual types
+- **Nested Error Reporting**: Detailed error messages for nested function calls
 
 ## 🎯 Monaco Error Handling
 
@@ -262,14 +325,48 @@ npm run build
 - **Special Types**: `Currency`, `Duration`
 
 ### Example Usage
+
+#### Basic Expressions
 ```specter
-// Valid expressions
+// Valid basic expressions
 GreaterThan(100, 50) AND LessThan(200, 300)
 Equals(Not(Empty("test")), true) OR Contains([1, 2, 3], 2)
 Currency(50000, "USD")
 Duration(6, "MONTHS")
 add(10, 20)
 ```
+
+#### Nested Function Validation
+```specter
+// Valid nested expressions (type-safe)
+add(Currency(100, "USD"), Currency(200, "USD"))  // Returns: currency
+multiply(Duration(5, "MONTHS"), 2)               // Returns: duration
+GreaterThan(Currency(1000, "USD"), Currency(500, "USD"))  // Returns: boolean
+subtract(Currency(100, "USD"), Currency(50, "USD"))       // Returns: currency
+
+// Invalid nested expressions (validation errors)
+add(Currency(100, "USD"), 50)                    // Error: Type mismatch
+multiply(Currency(100, "USD"), Currency(200, "USD"))  // Error: No matching signature
+add(10, "hello")                                 // Error: Type mismatch
+GreaterThan(Currency(100, "USD"), 50)            // Error: Type mismatch
+```
+
+#### Supported Type Combinations
+- **Arithmetic Functions** (`add`, `subtract`, `multiply`, `divide`):
+  - `(number, number) -> number`
+  - `(currency, currency) -> currency`
+  - `(duration, duration) -> duration`
+  - `(currency, number) -> currency` (multiply/divide only)
+  - `(duration, number) -> duration` (multiply/divide only)
+
+- **Comparison Functions** (`GreaterThan`, `LessThan`):
+  - `(number, number) -> boolean`
+  - `(currency, currency) -> boolean`
+  - `(duration, duration) -> boolean`
+
+- **Type Constructors**:
+  - `Currency(number, string) -> currency`
+  - `Duration(number, string) -> duration`
 
 ## 🔍 Debugging
 

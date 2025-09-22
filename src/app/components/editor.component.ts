@@ -159,13 +159,23 @@ export class EditorComponent implements OnInit, OnDestroy, OnChanges {
   };
 
   // Editor content
-  private _code = `// Specter Language Example - Expression-Only Grammar
-// Valid expressions (no errors):
-GreaterThan(100, 50) AND LessThan(200, 300)
-Equals(Not(Empty("test")), true) OR Contains([1, 2, 3], 2)
-Currency(50000, "USD")
-Duration(6, MONTHS)
+  private _code = `// Specter Language Example - Nested Function Validation
+// Valid nested expressions (no errors):
+add(Currency(100, "USD"), Currency(200, "USD"))
+multiply(Duration(5, "MONTHS"), 2)
+GreaterThan(Currency(1000, "USD"), Currency(500, "USD"))
 add(10, 20)
+subtract(Currency(100, "USD"), Currency(50, "USD"))
+
+// Invalid nested expressions (should show validation errors):
+add(Currency(100, "USD"), 50)
+multiply(Currency(100, "USD"), Currency(200, "USD"))
+add(10, "hello")
+GreaterThan(Currency(100, "USD"), 50)
+
+// Basic valid expressions:
+Equals(Not(Empty("test")), true) OR Contains([1, 2, 3], 2)
+Duration(6, "MONTHS")
 
 // Invalid examples to see validation errors:
 hello world
@@ -222,7 +232,7 @@ name = value
     try {
       await this.lspClient.initialize();
       console.log('LSP client initialized successfully');
-      
+
       // Open the initial document
       await this.lspClient.openDocument('file:///specter-document', this._code);
     } catch (error) {
@@ -247,7 +257,7 @@ name = value
   onEditorInit(editor: any) {
     console.log('Editor initialized:', editor);
     this.editor = editor;
-    
+
     // Register the Specter language
     const monaco = (window as any).monaco;
     if (!monaco) {
@@ -257,11 +267,11 @@ name = value
 
     // Set Monaco editor instance in LSP client
     this.lspClient.setMonacoEditor(monaco, editor);
-    
+
     // Check if editor is editable
     console.log('Editor readOnly:', editor.getOption(monaco.editor.EditorOption.readOnly));
     console.log('Editor is editable:', !editor.getOption(monaco.editor.EditorOption.readOnly));
-    
+
     console.log('Monaco available:', monaco);
     monaco.languages.register({ id: 'specter' });
 
@@ -299,25 +309,25 @@ name = value
           [/\b(AND|OR)\b/, 'keyword.operator'],
           [/\b(number|string|boolean|currency|duration|array|object)\b/, 'type'],
           [/\b(true|false)\b/, 'keyword.boolean'],
-          
+
           // Function calls - dynamic highlighting
           [/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/, 'function'],
-          
+
           // Duration units
           [/\b(DAYS|WEEKS|MONTHS|YEARS)\b/, 'keyword.constant'],
-          
+
           // Identifiers with dot notation
           [/[a-zA-Z_$][a-zA-Z0-9_$]*(\\.[a-zA-Z_$][a-zA-Z0-9_$]*)*/, 'identifier'],
-          
+
           // Strings
           [/"[^"]*"/, 'string'],
-          
+
           // Numbers (including negative)
           [/-?\d+(\.\d+)?/, 'number'],
-          
+
           // Operators
           [/[=:,(){}]/, 'operator'],
-          
+
           // Comments
           [/\/\/.*$/, 'comment'],
           [/\/\*[\s\S]*?\*\//, 'comment']
@@ -331,12 +341,12 @@ name = value
       console.log('Code changed:', content);
       this._code = content;
       this.contentChange.emit(content);
-      
+
       // Debounce LSP updates to avoid too many requests while typing
       if (this.updateTimeout) {
         clearTimeout(this.updateTimeout);
       }
-      
+
       this.updateTimeout = setTimeout(() => {
         // Notify LSP client of document changes
         if (this.lspClient.isInitialized()) {
