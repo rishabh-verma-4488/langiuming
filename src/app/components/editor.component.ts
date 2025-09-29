@@ -155,6 +155,19 @@ export class EditorComponent implements OnInit, OnDestroy, OnChanges {
     scrollbar: {
       vertical: 'auto',
       horizontal: 'auto'
+    },
+    // Completion options
+    quickSuggestions: {
+      other: true,
+      comments: false,
+      strings: false
+    },
+    suggestOnTriggerCharacters: true,
+    acceptSuggestionOnEnter: 'on',
+    tabCompletion: 'on',
+    wordBasedSuggestions: false,
+    parameterHints: {
+      enabled: true
     }
   };
 
@@ -335,6 +348,9 @@ name = value
       }
     });
 
+    // Register completion provider for Specter language
+    this.registerCompletionProvider(monaco);
+
     // Listen for content changes
     this.editor.onDidChangeModelContent(() => {
       const content = this.editor.getValue();
@@ -380,4 +396,103 @@ name = value
     this.code = '';
     this.updateEditorModel();
   }
+
+  /**
+   * Register completion provider for Specter language
+   */
+  private registerCompletionProvider(monaco: any) {
+    console.log('Registering Specter completion provider...');
+
+    monaco.languages.registerCompletionItemProvider('specter', {
+      triggerCharacters: ['(', ' ', '.', ','],
+      provideCompletionItems: async (model: any, position: any) => {
+        console.log('[MONACO-DEBUG] Completion requested at position:', position);
+        console.log('[MONACO-DEBUG] Model URI:', model.uri.toString());
+        console.log('[MONACO-DEBUG] LSP client initialized:', this.lspClient.isInitialized());
+
+        try {
+          // Convert Monaco position to LSP position (0-based)
+          const lspPosition = {
+            line: position.lineNumber - 1,
+            character: position.column - 1
+          };
+
+          console.log('[MONACO-DEBUG] LSP position:', lspPosition);
+
+          // Get completion from LSP
+          const completion = await this.lspClient.getCompletion(model.uri.toString(), lspPosition);
+          console.log('[MONACO-DEBUG] LSP completion response:', completion);
+
+          // Convert LSP completion items to Monaco format
+          const suggestions = (completion.items || []).map((item: any) => {
+            console.log('[MONACO-DEBUG] Converting item:', item);
+            return {
+              label: item.label,
+              kind: this.convertLSPKindToMonaco(item.kind),
+              detail: item.detail,
+              documentation: item.documentation,
+              insertText: item.insertText || item.label,
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: item.textEdit ? {
+                startLineNumber: item.textEdit.range.start.line + 1,
+                startColumn: item.textEdit.range.start.character + 1,
+                endLineNumber: item.textEdit.range.end.line + 1,
+                endColumn: item.textEdit.range.end.character + 1
+              } : undefined
+            };
+          });
+
+          console.log('[MONACO-DEBUG] Converted completion suggestions:', suggestions);
+          return { suggestions };
+        } catch (error) {
+          console.error('[MONACO-DEBUG] Error getting completion:', error);
+          return { suggestions: [] };
+        }
+      }
+    });
+
+    console.log('Specter completion provider registered successfully');
+  }
+
+  /**
+   * Convert LSP completion item kind to Monaco completion item kind
+   */
+  private convertLSPKindToMonaco(lspKind: number): any {
+    const monaco = (window as any).monaco;
+    if (!monaco) return monaco.languages.CompletionItemKind.Text;
+
+    // LSP to Monaco kind mapping
+    switch (lspKind) {
+      case 1: return monaco.languages.CompletionItemKind.Text; // Text
+      case 2: return monaco.languages.CompletionItemKind.Method; // Method
+      case 3: return monaco.languages.CompletionItemKind.Function; // Function
+      case 4: return monaco.languages.CompletionItemKind.Constructor; // Constructor
+      case 5: return monaco.languages.CompletionItemKind.Field; // Field
+      case 6: return monaco.languages.CompletionItemKind.Variable; // Variable
+      case 7: return monaco.languages.CompletionItemKind.Class; // Class
+      case 8: return monaco.languages.CompletionItemKind.Interface; // Interface
+      case 9: return monaco.languages.CompletionItemKind.Module; // Module
+      case 10: return monaco.languages.CompletionItemKind.Property; // Property
+      case 11: return monaco.languages.CompletionItemKind.Unit; // Unit
+      case 12: return monaco.languages.CompletionItemKind.Value; // Value
+      case 13: return monaco.languages.CompletionItemKind.Enum; // Enum
+      case 14: return monaco.languages.CompletionItemKind.Keyword; // Keyword
+      case 15: return monaco.languages.CompletionItemKind.Snippet; // Snippet
+      case 16: return monaco.languages.CompletionItemKind.Color; // Color
+      case 17: return monaco.languages.CompletionItemKind.File; // File
+      case 18: return monaco.languages.CompletionItemKind.Reference; // Reference
+      case 19: return monaco.languages.CompletionItemKind.Folder; // Folder
+      case 20: return monaco.languages.CompletionItemKind.EnumMember; // EnumMember
+      case 21: return monaco.languages.CompletionItemKind.Constant; // Constant
+      case 22: return monaco.languages.CompletionItemKind.Struct; // Struct
+      case 23: return monaco.languages.CompletionItemKind.Event; // Event
+      case 24: return monaco.languages.CompletionItemKind.Operator; // Operator
+      case 25: return monaco.languages.CompletionItemKind.TypeParameter; // TypeParameter
+      default: return monaco.languages.CompletionItemKind.Text;
+    }
+  }
+
+
+
+
 }

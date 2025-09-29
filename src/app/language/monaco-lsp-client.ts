@@ -12,7 +12,7 @@ export class MonacoLSPClient {
         try {
             // Create web worker for Langium LSP server using the proper langium-worker.ts
             this.worker = new Worker(new URL('./langium-worker.ts', import.meta.url), { type: 'module' });
-            
+
             // Set up message handling
             this.worker.onmessage = (event) => {
                 console.log('Worker message received:', event.data);
@@ -29,7 +29,7 @@ export class MonacoLSPClient {
 
             // Wait a bit for worker to be ready
             await new Promise(resolve => setTimeout(resolve, 1000));
-            
+
             // Initialize the LSP connection
             await this.initializeLSP();
             console.log('Monaco LSP client started successfully');
@@ -47,6 +47,14 @@ export class MonacoLSPClient {
                 textDocument: {
                     publishDiagnostics: {
                         relatedInformation: true
+                    },
+                    completion: {
+                        dynamicRegistration: true,
+                        completionItem: {
+                            snippetSupport: true,
+                            commitCharactersSupport: true,
+                            documentationFormat: ['markdown', 'plaintext']
+                        }
                     }
                 }
             },
@@ -55,7 +63,7 @@ export class MonacoLSPClient {
 
         const response = await this.sendRequest('initialize', initParams);
         console.log('LSP initialized:', response);
-        
+
         // Send initialized notification
         this.sendNotification('initialized', {});
         this.isConnected = true;
@@ -124,12 +132,41 @@ export class MonacoLSPClient {
         }
     }
 
+    // Handle completion requests from Monaco
+    async getCompletion(uri: string, position: { line: number; character: number }): Promise<any> {
+        console.log('[LSP-DEBUG] getCompletion called with URI:', uri, 'position:', position);
+        console.log('[LSP-DEBUG] LSP connected:', this.isConnected);
+
+        if (!this.isConnected) {
+            console.log('[LSP-DEBUG] LSP not connected, returning empty completion');
+            return { items: [] };
+        }
+
+        console.log('[LSP-DEBUG] Requesting completion for:', uri, 'at position:', position);
+
+        try {
+            const response = await this.sendRequest('textDocument/completion', {
+                textDocument: { uri },
+                position: {
+                    line: position.line,
+                    character: position.character
+                }
+            });
+
+            console.log('[LSP-DEBUG] Completion response:', response);
+            return response || { items: [] };
+        } catch (error) {
+            console.error('[LSP-DEBUG] Error getting completion:', error);
+            return { items: [] };
+        }
+    }
+
     private handleDiagnostics(params: any): void {
         console.log('=== DIAGNOSTICS RECEIVED ===');
         console.log('Params:', params);
         console.log('Monaco available:', !!this.monaco);
         console.log('Editor available:', !!this.editor);
-        
+
         if (!this.monaco || !this.editor) {
             console.log('Monaco editor not set, skipping diagnostics');
             return;
@@ -137,15 +174,15 @@ export class MonacoLSPClient {
 
         const diagnostics = params.diagnostics || [];
         const uri = params.uri;
-        
+
         console.log('Number of diagnostics:', diagnostics.length);
         console.log('URI:', uri);
-        
+
         // Convert LSP diagnostics to Monaco markers
         const markers = diagnostics.map((diagnostic: any) => {
             const severity = this.convertLSPSeverityToMonaco(diagnostic.severity);
             const range = diagnostic.range;
-            
+
             const marker = {
                 startLineNumber: range.start.line + 1, // LSP is 0-based, Monaco is 1-based
                 startColumn: range.start.character + 1,
@@ -155,7 +192,7 @@ export class MonacoLSPClient {
                 severity: severity,
                 source: diagnostic.source || 'Specter LSP'
             };
-            
+
             console.log('Created marker:', marker);
             return marker;
         });
@@ -166,7 +203,7 @@ export class MonacoLSPClient {
         try {
             this.monaco.editor.setModelMarkers(this.editor.getModel(), 'specter-lsp', markers);
             console.log(`✅ Applied ${markers.length} markers to editor`);
-            
+
             // Also try to get current markers to verify
             const currentMarkers = this.monaco.editor.getModelMarkers({ resource: this.editor.getModel().uri });
             console.log('Current markers in editor:', currentMarkers);
@@ -193,7 +230,7 @@ export class MonacoLSPClient {
             console.log('LSP not connected, skipping document open');
             return;
         }
-        
+
         console.log('Opening document:', uri, 'Content length:', content.length);
         this.sendNotification('textDocument/didOpen', {
             textDocument: {
@@ -210,7 +247,7 @@ export class MonacoLSPClient {
             console.log('LSP not connected, skipping document update');
             return;
         }
-        
+
         console.log('Updating document:', uri, 'Version:', version, 'Content length:', content.length);
         this.sendNotification('textDocument/didChange', {
             textDocument: {
@@ -225,7 +262,7 @@ export class MonacoLSPClient {
 
     async closeDocument(uri: string): Promise<void> {
         if (!this.isConnected) return;
-        
+
         this.sendNotification('textDocument/didClose', {
             textDocument: {
                 uri
@@ -249,7 +286,7 @@ export class MonacoLSPClient {
     setMonacoEditor(monaco: any, editor: any): void {
         this.monaco = monaco;
         this.editor = editor;
-        
+
         // Test: Add a simple marker to verify Monaco is working
         console.log('Setting up Monaco editor, testing markers...');
         this.testMarkers();
@@ -259,7 +296,7 @@ export class MonacoLSPClient {
 
     private testMarkers(): void {
         if (!this.monaco || !this.editor) return;
-        
+
         // Add a test marker to verify Monaco markers work
         const testMarkers = [{
             startLineNumber: 1,
@@ -270,10 +307,10 @@ export class MonacoLSPClient {
             severity: 8, // Error
             source: 'Test'
         }];
-        
+
         this.monaco.editor.setModelMarkers(this.editor.getModel(), 'test', testMarkers);
         console.log('Test markers applied');
-        
+
         // Remove test markers after 3 seconds
         setTimeout(() => {
             this.monaco.editor.setModelMarkers(this.editor.getModel(), 'test', []);

@@ -2,6 +2,7 @@ import { LangiumServices, PartialLangiumServices } from 'langium/lsp';
 import { Module } from 'langium';
 import { ValidationRegistry } from 'langium';
 import { SpecterValidationRegistry } from './specter-validation';
+import { SpecterCompletionProvider } from './specter-completion';
 
 export type SpecterAddedServices = {
     // Add any custom services here if needed
@@ -31,5 +32,8 @@ export const SpecterCustomModule: Module<SpecterServices, PartialLangiumServices
                 throw error;
             }
         }
+    },
+    lsp: {
+        CompletionProvider: (services) => new SpecterCompletionProvider(services)
     }
 };
