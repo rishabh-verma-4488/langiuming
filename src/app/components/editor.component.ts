@@ -351,6 +351,9 @@ name = value
     // Register completion provider for Specter language
     this.registerCompletionProvider(monaco);
 
+    // Register hover provider for Specter language
+    this.registerHoverProvider(monaco);
+
     // Listen for content changes
     this.editor.onDidChangeModelContent(() => {
       const content = this.editor.getValue();
@@ -452,6 +455,58 @@ name = value
     });
 
     console.log('Specter completion provider registered successfully');
+  }
+
+  /**
+   * Register hover provider for Specter language
+   */
+  private registerHoverProvider(monaco: any) {
+    console.log('Registering Specter hover provider...');
+
+    monaco.languages.registerHoverProvider('specter', {
+      provideHover: async (model: any, position: any) => {
+        console.log('[MONACO-DEBUG] Hover requested at position:', position);
+        console.log('[MONACO-DEBUG] Model URI:', model.uri.toString());
+        console.log('[MONACO-DEBUG] LSP client initialized:', this.lspClient.isInitialized());
+
+        try {
+          // Convert Monaco position to LSP position (0-based)
+          const lspPosition = {
+            line: position.lineNumber - 1,
+            character: position.column - 1
+          };
+
+          console.log('[MONACO-DEBUG] LSP position:', lspPosition);
+
+          // Get hover information from LSP
+          const hover = await this.lspClient.getHover(model.uri.toString(), lspPosition);
+          console.log('[MONACO-DEBUG] LSP hover response:', hover);
+
+          if (hover && hover.contents) {
+            // Convert LSP hover to Monaco format
+            const monacoHover = {
+              range: hover.range ? {
+                startLineNumber: hover.range.start.line + 1,
+                startColumn: hover.range.start.character + 1,
+                endLineNumber: hover.range.end.line + 1,
+                endColumn: hover.range.end.character + 1
+              } : undefined,
+              contents: hover.contents
+            };
+
+            console.log('[MONACO-DEBUG] Converted hover:', monacoHover);
+            return monacoHover;
+          }
+
+          return null;
+        } catch (error) {
+          console.error('[MONACO-DEBUG] Error getting hover:', error);
+          return null;
+        }
+      }
+    });
+
+    console.log('Specter hover provider registered successfully');
   }
 
   /**

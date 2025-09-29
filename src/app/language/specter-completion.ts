@@ -2,6 +2,7 @@ import { CompletionItem, CompletionItemKind, CompletionList, CompletionParams, C
 import { LangiumDocument, AstNode } from 'langium';
 import { SpecterServices } from './specter-custom-module';
 import { DefaultCompletionProvider } from 'langium/lsp';
+import { SpecterHoverProvider } from './specter-hover';
 
 /**
  * LSP Completion Provider for Specter language
@@ -19,8 +20,11 @@ export class SpecterCompletionProvider extends DefaultCompletionProvider {
         'Length', 'Substring', 'Concat', 'ToUpper', 'ToLower'
     ];
 
+    private hoverProvider: SpecterHoverProvider;
+
     constructor(services: SpecterServices) {
         super(services);
+        this.hoverProvider = new SpecterHoverProvider(services);
         console.log('[SPECTER-DEBUG] SpecterCompletionProvider: Initialized with', this.functionNames.length, 'functions');
     }
 
@@ -117,15 +121,30 @@ export class SpecterCompletionProvider extends DefaultCompletionProvider {
         const items: CompletionItem[] = [];
 
         if (context === 'function' || context === 'any') {
-            // Provide function name completions
+            // Provide function name completions with rich documentation
             this.functionNames.forEach(funcName => {
-                items.push({
-                    label: funcName,
-                    kind: CompletionItemKind.Function,
-                    detail: this.getFunctionDetail(funcName),
-                    documentation: this.getFunctionDocumentation(funcName),
-                    insertText: funcName + '('
-                });
+                const doc = this.hoverProvider.getFunctionDocumentation(funcName);
+                if (doc) {
+                    items.push({
+                        label: funcName,
+                        kind: CompletionItemKind.Function,
+                        detail: doc.signature,
+                        documentation: {
+                            kind: 'markdown',
+                            value: this.formatCompletionDocumentation(doc)
+                        },
+                        insertText: funcName + '('
+                    });
+                } else {
+                    // Fallback for functions without documentation
+                    items.push({
+                        label: funcName,
+                        kind: CompletionItemKind.Function,
+                        detail: this.getFunctionDetail(funcName),
+                        documentation: this.getFunctionDocumentation(funcName),
+                        insertText: funcName + '('
+                    });
+                }
             });
         }
 
@@ -235,7 +254,23 @@ export class SpecterCompletionProvider extends DefaultCompletionProvider {
     }
 
     /**
-     * Gets documentation for a function
+     * Format function documentation for completion items (shorter version)
+     */
+    private formatCompletionDocumentation(doc: any): string {
+        let markdown = `**${doc.name}**\n\n`;
+        markdown += `${doc.description}\n\n`;
+        markdown += `\`${doc.signature}\`\n\n`;
+        markdown += `**Returns:** \`${doc.returnType}\`\n\n`;
+
+        if (doc.examples && doc.examples.length > 0) {
+            markdown += `**Example:**\n\`\`\`specter\n${doc.examples[0]}\n\`\`\``;
+        }
+
+        return markdown;
+    }
+
+    /**
+     * Gets documentation for a function (fallback method)
      */
     private getFunctionDocumentation(funcName: string): string {
         const docs: { [key: string]: string } = {

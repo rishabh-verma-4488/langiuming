@@ -3,6 +3,7 @@ import { Module } from 'langium';
 import { ValidationRegistry } from 'langium';
 import { SpecterValidationRegistry } from './specter-validation';
 import { SpecterCompletionProvider } from './specter-completion';
+import { SpecterHoverProvider } from './specter-hover';
 
 export type SpecterAddedServices = {
     // Add any custom services here if needed
@@ -34,6 +35,7 @@ export const SpecterCustomModule: Module<SpecterServices, PartialLangiumServices
         }
     },
     lsp: {
-        CompletionProvider: (services) => new SpecterCompletionProvider(services)
+        CompletionProvider: (services) => new SpecterCompletionProvider(services),
+        HoverProvider: (services) => new SpecterHoverProvider(services)
     }
 };

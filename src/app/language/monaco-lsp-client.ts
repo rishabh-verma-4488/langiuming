@@ -161,6 +161,35 @@ export class MonacoLSPClient {
         }
     }
 
+    // Handle hover requests from Monaco
+    async getHover(uri: string, position: { line: number; character: number }): Promise<any> {
+        console.log('[LSP-DEBUG] getHover called with URI:', uri, 'position:', position);
+        console.log('[LSP-DEBUG] LSP connected:', this.isConnected);
+
+        if (!this.isConnected) {
+            console.log('[LSP-DEBUG] LSP not connected, returning null hover');
+            return null;
+        }
+
+        console.log('[LSP-DEBUG] Requesting hover for:', uri, 'at position:', position);
+
+        try {
+            const response = await this.sendRequest('textDocument/hover', {
+                textDocument: { uri },
+                position: {
+                    line: position.line,
+                    character: position.character
+                }
+            });
+
+            console.log('[LSP-DEBUG] Hover response:', response);
+            return response;
+        } catch (error) {
+            console.error('[LSP-DEBUG] Error getting hover:', error);
+            return null;
+        }
+    }
+
     private handleDiagnostics(params: any): void {
         console.log('=== DIAGNOSTICS RECEIVED ===');
         console.log('Params:', params);
