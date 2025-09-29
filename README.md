@@ -1,399 +1,570 @@
-# Langium Language Studio - Specter DSL
+# Specter Language Documentation
 
-A comprehensive domain-specific language (DSL) development environment built with Angular, Monaco Editor, and Langium. This project demonstrates how to create a custom language with syntax highlighting, validation, and Language Server Protocol (LSP) integration.
+This document provides a comprehensive overview of the Specter language implementation using Langium, including grammar setup, custom modules, function configuration, validation, and LSP integration.
 
-## 🏗️ Architecture Overview
+## 1. Grammar Setup
 
-### Core Components Flow
+### Grammar Rules
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Angular Application                      │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐  │
-│  │   App Component │    │ Editor Component│    │ Monaco LSP  │  │
-│  │   (main.ts)     │───▶│ (editor.component)│───▶│   Client    │  │
-│  └─────────────────┘    └─────────────────┘    └─────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Language Services Layer                      │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐  │
-│  │   Langium       │    │   Validation    │    │  Evaluation │  │
-│  │   Worker        │    │   Services      │    │  Services   │  │
-│  │ (langium-worker)│    │(specter-validation)│  │(specter-evaluator)│
-│  └─────────────────┘    └─────────────────┘    └─────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Generated Language Files                     │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐  │
-│  │   AST Types     │    │   Grammar       │    │   Module    │  │
-│  │  (generated/ast)│    │ (generated/grammar)│  │(generated/module)│
-│  └─────────────────┘    └─────────────────┘    └─────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
+The Specter language grammar is defined in `src/app/language/specter-grammar.ts`:
 
-## 📁 File Structure
-
-### Frontend Layer
-- **`src/main.ts`** - Angular application bootstrap and configuration
-- **`src/app/components/editor.component.ts`** - Monaco Editor integration component
-- **`src/global_styles.css`** - Global application styles
-
-### Language Definition Layer
-- **`src/app/language/specter.langium`** - Langium grammar definition
-- **`src/app/language/specter-grammar.ts`** - Grammar export utilities
-
-### Generated Language Files
-- **`src/app/language/generated/ast.ts`** - Abstract Syntax Tree type definitions
-- **`src/app/language/generated/grammar.ts`** - Generated grammar parser
-- **`src/app/language/generated/module.ts`** - Generated Langium module
-
-### Language Services Layer
-- **`src/app/language/langium-worker.ts`** - Web Worker for LSP server
-- **`src/app/language/specter-custom-module.ts`** - Custom Langium module configuration
-- **`src/app/language/specter-validation.ts`** - Validation services and rules
-- **`src/app/language/specter-evaluator.ts`** - Expression evaluation engine
-- **`src/app/language/monaco-lsp-client.ts`** - Monaco Editor LSP integration
-
-### Configuration
-- **`angular.json`** - Angular build configuration
-- **`package.json`** - Dependencies and scripts
-- **`tsconfig.*.json`** - TypeScript configuration files
-
-## 🔄 Data Flow
-
-### 1. User Input Flow
-```
-User Types in Editor
-        │
-        ▼
-Monaco Editor (editor.component.ts)
-        │
-        ▼
-Content Change Event
-        │
-        ▼
-Monaco LSP Client (monaco-lsp-client.ts)
-        │
-        ▼
-Web Worker Communication
-        │
-        ▼
-Langium Worker (langium-worker.ts)
-        │
-        ▼
-Language Server Protocol
-```
-
-### 2. Enhanced Validation Flow
-```
-Document Change
-        │
-        ▼
-LSP Document Update
-        │
-        ▼
-Langium Parser
-        │
-        ▼
-AST Generation
-        │
-        ▼
-Recursive Type Inference
-        │
-        ▼
-Enhanced Function Registry
-        │
-        ▼
-Type Combination Matching
-        │
-        ▼
-Nested Function Validation
-        │
-        ▼
-Error Message Generation
-        │
-        ▼
-Monaco Editor Markers
-```
-
-#### Type Inference Process
-```
-Function Call: add(Currency(100, "USD"), Currency(200, "USD"))
-        │
-        ▼
-Infer Argument Types:
-  - Currency(100, "USD") → currency
-  - Currency(200, "USD") → currency
-        │
-        ▼
-Find Matching Type Combination:
-  - (currency, currency) → currency
-        │
-        ▼
-Return Type: currency
-        │
-        ▼
-Validation: ✅ Valid
-```
-
-### 3. Evaluation Flow
-```
-Expression AST
-        │
-        ▼
-Specter Evaluator (specter-evaluator.ts)
-        │
-        ▼
-Function Registry Lookup
-        │
-        ▼
-Built-in Function Execution
-        │
-        ▼
-Result with Type Information
-```
-
-## 🛠️ Key Components
-
-### Editor Component (`editor.component.ts`)
-- **Purpose**: Main UI component integrating Monaco Editor
-- **Features**:
-  - Syntax highlighting for Specter language
-  - Real-time error display
-  - Code formatting and clearing
-  - Cursor position tracking
-  - LSP client integration
-
-### Monaco LSP Client (`monaco-lsp-client.ts`)
-- **Purpose**: Bridge between Monaco Editor and Langium LSP server
-- **Features**:
-  - Web Worker communication
-  - Document lifecycle management (open/update/close)
-  - Diagnostic conversion (LSP → Monaco markers)
-  - Request/response handling with timeouts
-
-### Langium Worker (`langium-worker.ts`)
-- **Purpose**: Web Worker hosting the LSP server
-- **Features**:
-  - Langium service initialization
-  - Module injection and configuration
-  - LSP protocol implementation
-  - Validation service integration
-
-### Validation Services (`specter-validation.ts`)
-- **Purpose**: Custom validation rules for Specter language
-- **Features**:
-  - Function signature validation
-  - Parameter count and type checking
-  - Built-in function registry
-  - Error reporting with detailed messages
-
-### Evaluation Engine (`specter-evaluator.ts`)
-- **Purpose**: Runtime evaluation of Specter expressions
-- **Features**:
-  - Expression tree traversal
-  - Function execution
-  - Type-safe result handling
-  - Error handling and reporting
-
-## 🔧 Validation Services Connection
-
-### Validation Registry Setup
 ```typescript
-// specter-custom-module.ts
-ValidationRegistry: (services) => {
-    const registry = new ValidationRegistry(services);
-    registry.register(SpecterValidationRegistry);
-    return registry;
+export const SpecterGrammar = `
+grammar Specter
+
+entry Model:
+    expressions+=Expression*;
+
+Expression:
+    LogicalExpression;
+
+LogicalExpression:
+    PrimaryExpression ({LogicalExpression.left=current} operator=('AND' | 'OR') right=PrimaryExpression)*;
+
+PrimaryExpression:
+    FunctionCall | Literal | ParenthesizedExpression;
+
+ParenthesizedExpression:
+    '(' expression=Expression ')';
+
+FunctionCall:
+    name=ID '(' arguments=FunctionArguments? ')';
+
+FunctionArguments:
+    values+=Expression (',' values+=Expression)*;
+
+Literal:
+    StringLiteral | NumberLiteral | ArrayLiteral | BooleanLiteral;
+
+StringLiteral:
+    value=STRING;
+
+NumberLiteral:
+    value=NUMBER;
+
+BooleanLiteral:
+    value=('true' | 'false');
+
+ArrayLiteral:
+    '[' values+=Expression (',' values+=Expression)* ']';
+
+terminal NUMBER returns number:
+    /-?\\d+(\\.\\d+)?/;
+
+terminal STRING:
+    /"[^"]*"/;
+
+terminal ID:
+    /[a-zA-Z_$][a-zA-Z0-9_$]*/;
+
+hidden terminal WS:
+    /[\\s\\n\\r]+/;
+
+hidden terminal ML_COMMENT:
+    /\\/\\*[\\s\\S]*?\\*\\//;
+
+hidden terminal SL_COMMENT:
+    /\\/\\/[^\\n\\r]*/;
+`;
+```
+
+### Generated AST Example
+
+The grammar generates the following AST structure (from `generated/ast.ts`):
+
+```typescript
+export interface Model {
+    $type: 'Model';
+    expressions: Expression[];
 }
-```
 
-### Enhanced Function Registry
-The validation system now supports two types of function registries:
-
-#### Basic Function Registry
-- **Purpose**: Simple function signatures with basic type checking
-- **Features**: Parameter count validation, basic type compatibility
-- **Use Case**: Simple functions like `Equals`, `Not`, `Empty`
-
-#### Enhanced Function Registry
-- **Purpose**: Advanced type combinations and nested validation
-- **Features**: Multiple type combinations per function, recursive type inference
-- **Use Case**: Complex functions like `add`, `multiply`, `Currency`, `Duration`
-
-```typescript
-// Enhanced function signature example
-interface EnhancedFunctionSignature {
+export interface FunctionCall {
+    $type: 'FunctionCall';
     name: string;
-    parameters: Array<{ name: string; type: string; optional?: boolean }>;
-    returnType: string;
-    typeCombinations: Array<{
-        parameterTypes: string[];
-        returnType: string;
-        description?: string;
-    }>;
+    arguments?: FunctionArguments;
+}
+
+export interface FunctionArguments {
+    $type: 'FunctionArguments';
+    values: Expression[];
+}
+
+export interface LogicalExpression {
+    $type: 'LogicalExpression';
+    left: PrimaryExpression;
+    operator: 'AND' | 'OR';
+    right: PrimaryExpression;
+}
+
+// Type guards
+export function isFunctionCall(node: AstNode): node is FunctionCall {
+    return node.$type === 'FunctionCall';
 }
 ```
 
-### Recursive Type Inference
-The validation system now performs bottom-up type inference:
+## 2. Custom Module
 
-1. **Literal Types**: Numbers, strings, booleans, arrays
-2. **Function Call Types**: Inferred from argument types and return types
-3. **Nested Validation**: Recursively validates nested function calls
-4. **Type Matching**: Finds matching type combinations for enhanced functions
+The custom module (`src/app/language/specter-custom-module.ts`) registers all language services:
 
-### Validation Rules
-- **Model Validation**: Checks expression structure
-- **Function Call Validation**: Validates function names, parameters, and types
-- **Logical Expression Validation**: Ensures proper operator usage
-- **Nested Type Validation**: Recursively validates nested function calls
-- **Type Combination Matching**: Validates against allowed type combinations
+```typescript
+import { LangiumServices, PartialLangiumServices } from 'langium/lsp';
+import { Module } from 'langium';
+import { ValidationRegistry } from 'langium';
+import { SpecterValidationRegistry } from './specter-validation';
+import { SpecterCompletionProvider } from './specter-completion';
+import { SpecterHoverProvider } from './specter-hover';
 
-### Error Handling
-- **Defensive Programming**: Null/undefined checks throughout
-- **Graceful Degradation**: Errors don't break the validation process
-- **Comprehensive Logging**: Detailed debug information
-- **User-Friendly Messages**: Clear error descriptions with expected vs actual types
-- **Nested Error Reporting**: Detailed error messages for nested function calls
+export type SpecterAddedServices = {
+    // Add any custom services here if needed
+}
 
-## 🎯 Monaco Error Handling
+export type SpecterServices = LangiumServices & SpecterAddedServices;
 
-### Diagnostic Processing
-1. **LSP Diagnostics** received from Langium worker
-2. **Severity Conversion** (LSP → Monaco format)
-3. **Range Mapping** (0-based LSP → 1-based Monaco)
-4. **Marker Application** to editor model
-
-### Error Display
-- **Real-time Validation**: As you type
-- **Visual Indicators**: Red squiggly lines for errors
-- **Status Bar**: Error/warning counts
-- **Hover Information**: Detailed error messages
-
-### Error Types Handled
-- **Syntax Errors**: Invalid grammar constructs
-- **Semantic Errors**: Type mismatches, unknown functions
-- **Validation Errors**: Parameter count mismatches
-- **Runtime Errors**: Division by zero, invalid operations
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js 18+
-- Angular CLI
-- Langium CLI
-
-### Installation
-```bash
-npm install
+export const SpecterCustomModule: Module<SpecterServices, PartialLangiumServices & SpecterAddedServices> = {
+    validation: {
+        ValidationRegistry: (services) => {
+            const registry = new ValidationRegistry(services);
+            registry.register(SpecterValidationRegistry);
+            return registry;
+        }
+    },
+    lsp: {
+        CompletionProvider: (services) => new SpecterCompletionProvider(services),
+        HoverProvider: (services) => new SpecterHoverProvider(services)
+    }
+};
 ```
 
-### Development
-```bash
-# Start development server
-npm start
+### Registered Providers
 
-# Generate language files (if grammar changes)
-npm run langium:generate
+- **ValidationRegistry**: Handles syntax and semantic validation
+- **CompletionProvider**: Provides code completion suggestions
+- **HoverProvider**: Provides hover documentation
 
-# Watch for grammar changes
-npm run langium:watch
+## 3. Function Configuration
+
+### Function Configuration Interface
+
+```typescript
+interface FunctionConfig {
+    name: string;
+    documentation: string;
+    paramCount: number;
+    paramTypes: string[];
+    returnTypeMapBasedOnParamType: Map<string, string>;
+    customValidationBasedOnParam: (params: any[]) => ValidationResult;
+    examples: string[];
+    category: 'arithmetic' | 'comparison' | 'string' | 'type_constructor';
+    isAsync?: boolean;
+    deprecated?: boolean;
+}
+
+interface ValidationResult {
+    isValid: boolean;
+    errorMessage?: string;
+    warningMessage?: string;
+}
 ```
 
-### Building
-```bash
-npm run build
+### Example Function Definition
+
+```typescript
+const functionConfig: FunctionConfig[] = [
+    {
+        name: 'add',
+        documentation: 'Adds two numbers together. Supports integers and floating-point numbers.',
+        paramCount: 2,
+        paramTypes: ['number', 'number'],
+        returnTypeMapBasedOnParamType: new Map([
+            ['number,number', 'number'],
+            ['currency,currency', 'currency'],
+            ['duration,duration', 'duration']
+        ]),
+        customValidationBasedOnParam: (params) => {
+            if (params.length !== 2) {
+                return { isValid: false, errorMessage: 'add() requires exactly 2 parameters' };
+            }
+            if (typeof params[0] !== 'number' || typeof params[1] !== 'number') {
+                return { isValid: false, errorMessage: 'add() parameters must be numbers' };
+            }
+            return { isValid: true };
+        },
+        examples: [
+            'add(5, 3) // Returns 8',
+            'add(10, -5) // Returns 5',
+            'add(0.5, 0.3) // Returns 0.8'
+        ],
+        category: 'arithmetic'
+    },
+    {
+        name: 'GreaterThan',
+        documentation: 'Compares two values and returns true if the left operand is greater than the right operand.',
+        paramCount: 2,
+        paramTypes: ['any', 'any'],
+        returnTypeMapBasedOnParamType: new Map([
+            ['number,number', 'boolean'],
+            ['currency,currency', 'boolean'],
+            ['duration,duration', 'boolean']
+        ]),
+        customValidationBasedOnParam: (params) => {
+            if (params.length !== 2) {
+                return { isValid: false, errorMessage: 'GreaterThan() requires exactly 2 parameters' };
+            }
+            // Type-safe comparison validation
+            const leftType = this.inferType(params[0]);
+            const rightType = this.inferType(params[1]);
+            
+            if (leftType !== rightType) {
+                return { 
+                    isValid: false, 
+                    errorMessage: `Type mismatch: cannot compare ${leftType} with ${rightType}` 
+                };
+            }
+            return { isValid: true };
+        },
+        examples: [
+            'GreaterThan(10, 5) // Returns true',
+            'GreaterThan(Currency(100, "USD"), Currency(50, "USD")) // Returns true'
+        ],
+        category: 'comparison'
+    }
+];
 ```
 
-## 📝 Specter Language Features
+## 4. Validation Class
 
-### Supported Expressions
-- **Logical Operations**: `AND`, `OR`
-- **Function Calls**: `GreaterThan(100, 50)`
-- **Literals**: Numbers, strings, booleans, arrays
-- **Parentheses**: `(expression)`
+### Validation Registry
 
-### Built-in Functions
-- **Comparison**: `GreaterThan`, `LessThan`, `Equals`, `Not`
-- **Array Operations**: `Contains`
-- **Arithmetic**: `add`, `subtract`, `multiply`, `divide`
-- **Special Types**: `Currency`, `Duration`
+```typescript
+export const SpecterValidationRegistry: ValidationChecks<SpecterAstType> = {
+    Model: (node: Model, accept: ValidationAcceptor) => {
+        const validator = new SpecterValidator();
+        validator.checkModel(node, accept);
+    },
+    FunctionCall: (node: FunctionCall, accept: ValidationAcceptor) => {
+        const validator = new SpecterValidator();
+        validator.checkFunctionCall(node, accept);
+    }
+};
+```
 
-### Example Usage
+### Example Validation Rule
 
-#### Basic Expressions
+```typescript
+export class SpecterValidator {
+    private functionRegistry = new Map<string, FunctionSignature>();
+
+    checkFunctionCall(node: FunctionCall, accept: ValidationAcceptor): void {
+        const funcName = node.name;
+        const signature = this.functionRegistry.get(funcName);
+        
+        if (!signature) {
+            accept('error', `Unknown function '${funcName}'`, { node });
+            return;
+        }
+
+        // Check parameter count
+        const argCount = node.arguments?.values.length || 0;
+        if (argCount !== signature.parameters.length) {
+            accept('error', 
+                `Function '${funcName}' expects ${signature.parameters.length} parameters, got ${argCount}`, 
+                { node }
+            );
+        }
+
+        // Validate parameter types
+        if (node.arguments) {
+            node.arguments.values.forEach((arg, index) => {
+                const expectedType = signature.parameters[index]?.type;
+                const actualType = this.inferExpressionType(arg);
+                
+                if (expectedType && actualType !== expectedType) {
+                    accept('error', 
+                        `Parameter ${index + 1} of '${funcName}' expects ${expectedType}, got ${actualType}`, 
+                        { node: arg }
+                    );
+                }
+            });
+        }
+    }
+
+    private inferExpressionType(expr: Expression): string {
+        if (isNumberLiteral(expr)) return 'number';
+        if (isStringLiteral(expr)) return 'string';
+        if (isBooleanLiteral(expr)) return 'boolean';
+        if (isArrayLiteral(expr)) return 'array';
+        if (isFunctionCall(expr)) {
+            const signature = this.functionRegistry.get(expr.name);
+            return signature?.returnType || 'unknown';
+        }
+        return 'unknown';
+    }
+}
+```
+
+## 5. Simple Samples
+
+### Completion Class
+
+```typescript
+export class SpecterCompletionProvider extends DefaultCompletionProvider {
+    private functionNames: string[] = ['add', 'subtract', 'GreaterThan', 'LessThan'];
+
+    override async getCompletion(document: LangiumDocument, params: CompletionParams): Promise<CompletionList | undefined> {
+        const specterCompletions = this.getSpecterCompletions(document, params);
+        const defaultCompletions = await super.getCompletion(document, params, cancelToken);
+
+        return {
+            items: [
+                ...(defaultCompletions?.items || []),
+                ...specterCompletions
+            ],
+            isIncomplete: defaultCompletions?.isIncomplete || false
+        };
+    }
+
+    private getSpecterCompletions(document: LangiumDocument, params: CompletionParams): CompletionItem[] {
+        const items: CompletionItem[] = [];
+        
+        this.functionNames.forEach(funcName => {
+            items.push({
+                label: funcName,
+                kind: CompletionItemKind.Function,
+                detail: `${funcName}(...)`,
+                documentation: `Built-in Specter function: ${funcName}`,
+                insertText: funcName + '('
+            });
+        });
+
+        return items;
+    }
+}
+```
+
+### Hover Class
+
+```typescript
+export class SpecterHoverProvider implements HoverProvider {
+    private functionDocumentation = new Map<string, string>();
+
+    constructor() {
+        this.functionDocumentation.set('add', 'Adds two numbers together');
+        this.functionDocumentation.set('GreaterThan', 'Compares two values');
+    }
+
+    async getHoverContent(params: any): Promise<Hover | undefined> {
+        const text = params.textDocument._content;
+        const words = text.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g) || [];
+        
+        for (const word of words) {
+            if (this.functionDocumentation.has(word)) {
+                return {
+                    contents: {
+                        kind: 'markdown',
+                        value: `**${word}**\n\n${this.functionDocumentation.get(word)}`
+                    }
+                };
+            }
+        }
+        
+        return undefined;
+    }
+}
+```
+
+## 6. Langium Worker & LSP Client
+
+### Langium Worker
+
+```typescript
+// src/app/language/langium-worker.ts
+import { createDefaultModule, createDefaultSharedModule, DefaultSharedModuleContext, startLanguageServer } from 'langium/lsp';
+import { inject } from 'langium';
+import { BrowserMessageReader, BrowserMessageWriter, createConnection } from 'vscode-languageserver/browser';
+import { EmptyFileSystem } from 'langium';
+import { SpecterGeneratedModule, SpecterGeneratedSharedModule } from './generated/module';
+import { SpecterCustomModule } from './specter-custom-module';
+
+// Create message reader and writer for web worker communication
+const messageReader = new BrowserMessageReader(self as any);
+const messageWriter = new BrowserMessageWriter(self as any);
+const connection = createConnection(messageReader, messageWriter);
+
+// Create Langium services
+const context: DefaultSharedModuleContext = {
+    connection: connection as any,
+    fileSystemProvider: () => EmptyFileSystem.fileSystemProvider()
+};
+
+const shared = inject(
+    createDefaultSharedModule(context),
+    SpecterGeneratedSharedModule
+);
+
+const Specter = inject(
+    createDefaultModule({ shared }),
+    SpecterGeneratedModule,
+    SpecterCustomModule
+);
+
+shared.ServiceRegistry.register(Specter);
+startLanguageServer(shared);
+```
+
+### LSP Client
+
+```typescript
+// src/app/language/monaco-lsp-client.ts
+export class MonacoLSPClient {
+    private worker: Worker | null = null;
+    private messageId = 0;
+    private pendingRequests = new Map<number, { resolve: (value: any) => void; reject: (error: any) => void }>();
+
+    async initialize(): Promise<void> {
+        this.worker = new Worker(new URL('./langium-worker.ts', import.meta.url), { type: 'module' });
+        
+        this.worker.onmessage = (event) => {
+            this.handleMessage(event.data);
+        };
+
+        await this.initializeLSP();
+    }
+
+    private async initializeLSP(): Promise<void> {
+        const initParams = {
+            processId: null,
+            rootUri: null,
+            capabilities: {
+                textDocument: {
+                    publishDiagnostics: { relatedInformation: true },
+                    completion: { dynamicRegistration: true }
+                }
+            },
+            workspaceFolders: null
+        };
+
+        await this.sendRequest('initialize', initParams);
+        this.sendNotification('initialized', {});
+    }
+
+    async getCompletion(uri: string, position: { line: number; character: number }): Promise<any> {
+        return await this.sendRequest('textDocument/completion', {
+            textDocument: { uri },
+            position: { line: position.line, character: position.character }
+        });
+    }
+
+    async getHover(uri: string, position: { line: number; character: number }): Promise<any> {
+        return await this.sendRequest('textDocument/hover', {
+            textDocument: { uri },
+            position: { line: position.line, character: position.character }
+        });
+    }
+}
+```
+
+## 7. Editor Changes
+
+### Monaco Editor Integration
+
+```typescript
+// src/app/components/editor.component.ts
+export class EditorComponent {
+    private lspClient = new MonacoLSPClient();
+
+    onEditorInit(editor: any) {
+        const monaco = (window as any).monaco;
+        
+        // Register Specter language
+        monaco.languages.register({ id: 'specter' });
+        
+        // Set up completion provider
+        monaco.languages.registerCompletionItemProvider('specter', {
+            provideCompletionItems: async (model: any, position: any) => {
+                const lspPosition = {
+                    line: position.lineNumber - 1,
+                    character: position.column - 1
+                };
+                
+                const completion = await this.lspClient.getCompletion(model.uri.toString(), lspPosition);
+                return { suggestions: this.convertLSPToMonaco(completion.items) };
+            }
+        });
+
+        // Set up hover provider
+        monaco.languages.registerHoverProvider('specter', {
+            provideHover: async (model: any, position: any) => {
+                const lspPosition = {
+                    line: position.lineNumber - 1,
+                    character: position.column - 1
+                };
+                
+                return await this.lspClient.getHover(model.uri.toString(), lspPosition);
+            }
+        });
+
+        // Listen for content changes
+        editor.onDidChangeModelContent(() => {
+            const content = editor.getValue();
+            this.lspClient.updateDocument('file:///specter-document', content, Date.now());
+        });
+    }
+
+    private convertLSPToMonaco(items: any[]): any[] {
+        return items.map(item => ({
+            label: item.label,
+            kind: this.convertLSPKindToMonaco(item.kind),
+            detail: item.detail,
+            documentation: item.documentation,
+            insertText: item.insertText || item.label
+        }));
+    }
+}
+```
+
+## Usage Examples
+
+### Valid Specter Code
+
 ```specter
-// Valid basic expressions
-GreaterThan(100, 50) AND LessThan(200, 300)
-Equals(Not(Empty("test")), true) OR Contains([1, 2, 3], 2)
-Currency(50000, "USD")
-Duration(6, "MONTHS")
-add(10, 20)
+// Arithmetic operations
+add(5, 3)
+subtract(10, 4)
+multiply(2, 6)
+divide(15, 3)
+
+// Comparison operations
+GreaterThan(10, 5)
+LessThan(3, 7)
+Equals(5, 5)
+
+// Logical operations
+GreaterThan(10, 5) AND LessThan(3, 7)
+Equals(5, 5) OR Not(Empty("hello"))
+
+// Type constructors
+Currency(100, "USD")
+Duration(30, "DAYS")
+
+// String operations
+Length("hello")
+ToUpper("world")
+Concat("hello", "world")
 ```
 
-#### Nested Function Validation
+### Error Examples
+
 ```specter
-// Valid nested expressions (type-safe)
-add(Currency(100, "USD"), Currency(200, "USD"))  // Returns: currency
-multiply(Duration(5, "MONTHS"), 2)               // Returns: duration
-GreaterThan(Currency(1000, "USD"), Currency(500, "USD"))  // Returns: boolean
-subtract(Currency(100, "USD"), Currency(50, "USD"))       // Returns: currency
+// Type mismatch errors
+add(5, "hello")  // Error: cannot add number and string
+GreaterThan(Currency(100, "USD"), 50)  // Error: type mismatch
 
-// Invalid nested expressions (validation errors)
-add(Currency(100, "USD"), 50)                    // Error: Type mismatch
-multiply(Currency(100, "USD"), Currency(200, "USD"))  // Error: No matching signature
-add(10, "hello")                                 // Error: Type mismatch
-GreaterThan(Currency(100, "USD"), 50)            // Error: Type mismatch
+// Parameter count errors
+add(5)  // Error: add() requires exactly 2 parameters
+GreaterThan(10, 5, 3)  // Error: GreaterThan() requires exactly 2 parameters
+
+// Unknown function errors
+unknownFunction(5, 3)  // Error: Unknown function 'unknownFunction'
 ```
 
-#### Supported Type Combinations
-- **Arithmetic Functions** (`add`, `subtract`, `multiply`, `divide`):
-  - `(number, number) -> number`
-  - `(currency, currency) -> currency`
-  - `(duration, duration) -> duration`
-  - `(currency, number) -> currency` (multiply/divide only)
-  - `(duration, number) -> duration` (multiply/divide only)
-
-- **Comparison Functions** (`GreaterThan`, `LessThan`):
-  - `(number, number) -> boolean`
-  - `(currency, currency) -> boolean`
-  - `(duration, duration) -> boolean`
-
-- **Type Constructors**:
-  - `Currency(number, string) -> currency`
-  - `Duration(number, string) -> duration`
-
-## 🔍 Debugging
-
-### Console Logging
-- **LSP Communication**: Request/response logging
-- **Validation Process**: Step-by-step validation logging
-- **Error Handling**: Detailed error information
-- **Monaco Integration**: Editor state and marker updates
-
-### Common Issues
-1. **Worker Not Loading**: Check browser console for worker errors
-2. **Validation Errors**: Check Langium grammar and validation rules
-3. **Monaco Not Available**: Ensure Monaco is loaded before initialization
-4. **LSP Connection**: Verify worker communication and LSP protocol
-
-## 🏆 Best Practices
-
-### Code Organization
-- **Separation of Concerns**: Clear separation between UI, language services, and validation
-- **Error Handling**: Comprehensive error handling at all levels
-- **Type Safety**: Strong typing throughout the application
-- **Modularity**: Reusable components and services
-
-### Performance
-- **Debounced Updates**: Prevent excessive LSP requests while typing
-- **Worker Communication**: Efficient message passing
-- **Memory Management**: Proper cleanup of resources
-- **Lazy Loading**: On-demand service initialization
-
-This architecture provides a robust foundation for building domain-specific languages with modern web technologies, offering real-time validation, syntax highlighting, and a professional development experience.
+This documentation provides a complete overview of the Specter language implementation, from grammar definition to editor integration, enabling developers to understand and extend the language system.
